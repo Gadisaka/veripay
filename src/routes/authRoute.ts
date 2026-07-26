@@ -22,14 +22,23 @@ async function upsertUser(profile: GoogleProfile): Promise<User | null> {
         where: { OR: [{ googleId: profile.googleId }, { email: profile.email }] }
     });
 
-    // The first account to sign in becomes an administrator, so a fresh
-    // deployment is reachable without seeding the database by hand.
-    const isFirstUser = !existing && (await prisma.user.count()) === 0;
-    const shouldBeAdmin = isFirstUser || adminEmails().includes(profile.email);
-
     if (!existing) {
         const settings = await getSettings();
         if (!settings.signupsEnabled) return null;
+
+        const allowlist = adminEmails();
+        // If ADMIN_EMAILS is set, only those addresses become admin.
+        // If it is empty, the very first account bootstraps as admin so a fresh
+        // deploy is reachable. Role is never changed again on later logins —
+        // promote/demote only happens from /admin.
+        const isFirstUser = (await prisma.user.count()) === 0;
+        const shouldBeAdmin = allowlist.length > 0 ? allowlist.includes(profile.email) : isFirstUser;
+
+        if (shouldBeAdmin) {
+            logger.warn(
+                `Granting ADMIN on signup to ${profile.email} (${allowlist.length > 0 ? 'ADMIN_EMAILS' : 'first user'})`
+            );
+        }
 
         return prisma.user.create({
             data: {
@@ -43,13 +52,14 @@ async function upsertUser(profile: GoogleProfile): Promise<User | null> {
         });
     }
 
+    // Do not touch role on login. Re-applying ADMIN_EMAILS here was promoting
+    // people again every time they signed in (and undoing demotions).
     return prisma.user.update({
         where: { id: existing.id },
         data: {
             googleId: profile.googleId,
             name: profile.name ?? existing.name,
             avatarUrl: profile.avatarUrl ?? existing.avatarUrl,
-            role: shouldBeAdmin ? 'ADMIN' : existing.role,
             lastLoginAt: new Date()
         }
     });
