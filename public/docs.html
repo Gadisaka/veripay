@@ -836,10 +836,20 @@ if (response.ok &amp;&amp; result.success) {
       <code class="inline">multipart/form-data</code>, not JSON.
     </p>
 
+    <div class="callout warn">
+      <p>
+        <strong>Administrator only.</strong> Image verification requires an API key owned by a user with the
+        <code class="inline">ADMIN</code> role. Regular keys get <code class="inline">403</code>. Admins can also run
+        this from <a href="/admin/image">/admin/image</a> while signed in. The server needs
+        <code class="inline">MISTRAL_API_KEY</code> configured.
+      </p>
+    </div>
+
     <div class="endpoint-head">
       <span class="pill post">POST</span>
       <span class="path">/verify-image</span>
       <span class="pill auth">x-veripay-key</span>
+      <span class="pill auth">ADMIN key</span>
     </div>
 
     <h4>Form fields</h4>
@@ -954,7 +964,7 @@ const result = await response.json();</pre>
         <tr><td><code>200</code></td><td>Request handled</td><td>Check the body — a verification can still have failed</td></tr>
         <tr><td><code>400</code></td><td>Bad payload</td><td>Missing field, wrong suffix length, or a field the provider does not accept</td></tr>
         <tr><td><code>401</code></td><td>No API key</td><td>Add <code>x-veripay-key</code></td></tr>
-        <tr><td><code>403</code></td><td>Bad API key</td><td>Key is not recognised by this server</td></tr>
+        <tr><td><code>403</code></td><td>Bad API key / forbidden</td><td>Key unknown, or endpoint requires an administrator key (image)</td></tr>
         <tr><td><code>404</code></td><td>Receipt not found</td><td>Reference is wrong, or the receipt is not yet published</td></tr>
         <tr><td><code>422</code></td><td>Found but unreadable</td><td>Receipt could not be parsed; safe to retry once</td></tr>
         <tr><td><code>500</code></td><td>Server error</td><td>Retry with backoff; check logs if it persists</td></tr>
@@ -1521,6 +1531,8 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
       router: false,
       path: '/verify-image',
       notes: [
+        'ADMIN ONLY: the x-veripay-key must belong to an administrator account. Regular keys receive HTTP 403.',
+        'Server must have MISTRAL_API_KEY configured. Admins can also use the signed-in UI at /admin/image.',
         'multipart/form-data, not JSON. Field file is required; optional suffix for CBE; query ?autoVerify=true to verify after OCR.',
         'Does NOT use the success convention. Check HTTP status. Failures are { "error": "..." }.',
         'Without autoVerify returns type, reference, forward_to. With autoVerify returns verified, type, reference, details.'

@@ -1,9 +1,11 @@
+import fs from 'fs';
 import { Router, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 import { requireAdmin } from '../auth/session';
 import { AppSettings, DEFAULT_SETTINGS, SETTING_LABELS, getSettings, updateSettings } from '../config/settings';
-import { currentPeriodStart, getDailyUsage, getUsageSummary } from '../services/usage';
+import { clientIp, currentPeriodStart, getDailyUsage, getUsageSummary, recordUsage } from '../services/usage';
+import { imageUpload, isMistralConfigured, processReceiptImage } from '../services/verifyImage';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -281,6 +283,74 @@ router.post('/settings', async (req: Request, res: Response) => {
     logger.warn(`Admin ${req.currentUser!.email} updated global settings`);
 
     res.redirect('/admin/settings?notice=Settings+saved');
+});
+
+// ── Receipt image verification (admin session only) ───────────────────────────
+
+router.get('/image', (_req: Request, res: Response) => {
+    res.render('admin/image', {
+        title: 'Image verification — Admin',
+        active: '',
+        section: 'admin-image',
+        mistralConfigured: isMistralConfigured()
+    });
+});
+
+/**
+ * Runs OCR (+ optional live verify) for a signed-in administrator without
+ * requiring them to paste an API key into the browser.
+ */
+router.post('/image/verify', imageUpload.single('file'), async (req: Request, res: Response) => {
+    const startedAt = Date.now();
+    const user = req.currentUser!;
+
+    try {
+        if (!req.file) {
+            res.status(400).json({ success: false, error: 'Choose a receipt image first.' });
+            return;
+        }
+
+        const autoVerify =
+            req.body?.autoVerify === 'true' ||
+            req.body?.autoVerify === 'on' ||
+            req.body?.autoVerify === true;
+
+        const suffix = typeof req.body?.suffix === 'string' ? req.body.suffix.trim() : '';
+
+        const outcome = await processReceiptImage(req.file.path, {
+            autoVerify,
+            accountSuffix: suffix || null
+        });
+
+        recordUsage({
+            userId: user.id,
+            endpoint: '/admin/image/verify',
+            method: 'POST',
+            statusCode: outcome.httpStatus,
+            responseTime: Date.now() - startedAt,
+            provider: typeof outcome.body.type === 'string' ? outcome.body.type : null,
+            ip: clientIp(req as never),
+            source: 'DASHBOARD'
+        });
+
+        logger.info(`Admin ${user.email} ran image verification (${outcome.httpStatus})`);
+
+        res.status(outcome.httpStatus).json({
+            success: outcome.httpStatus < 400,
+            ...outcome.body
+        });
+    } catch (err) {
+        logger.error('Admin image verification failed:', err);
+        res.status(500).json({ success: false, error: 'Something went wrong processing the image.' });
+    } finally {
+        if (req.file?.path) {
+            try {
+                fs.unlinkSync(req.file.path);
+            } catch {
+                // ignore
+            }
+        }
+    }
 });
 
 export default router;

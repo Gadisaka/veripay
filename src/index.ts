@@ -25,7 +25,7 @@ import adminRouter from './routes/adminRoute';
 import logger from './utils/logger';
 import { verifyImageHandler } from './services/verifyImage';
 import { requestLogger } from './middleware/requestLogger';
-import { apiKeyAuth } from './middleware/apiKeyAuth';
+import { apiKeyAuth, requireAdminApiKey } from './middleware/apiKeyAuth';
 import { loadUser } from './auth/session';
 import { connectDatabase, disconnectDatabase } from './utils/prisma';
 
@@ -88,7 +88,7 @@ app.use('/verify-dashen', apiCors, apiKeyAuth, dashenRouter);
 app.use('/verify-abyssinia', apiCors, apiKeyAuth, abyssiniaRouter);
 app.use('/verify-cbebirr', apiCors, apiKeyAuth, cbebirrRouter);
 app.use('/verify-mpesa', apiCors, apiKeyAuth, mpesaRouter);
-app.post('/verify-image', apiCors, apiKeyAuth, verifyImageHandler);
+app.post('/verify-image', apiCors, apiKeyAuth, requireAdminApiKey, verifyImageHandler);
 app.use('/verify', apiCors, apiKeyAuth, universalRouter);
 
 app.get('/health', apiCors, (_req: Request, res: Response) => {

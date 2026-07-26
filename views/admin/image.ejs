@@ -1,0 +1,130 @@
+<%- include('../partials/header', { title: title, active: active }) %>
+
+<div class="app-shell">
+  <%- include('../partials/appnav', { section: section }) %>
+
+  <main class="app-main">
+    <div class="page-head">
+      <h1 class="page-title">Image verification</h1>
+      <p class="muted small">
+        Upload a CBE or Telebirr receipt screenshot. OCR runs through Mistral, then optionally verifies the
+        extracted reference against the live provider. Restricted to administrators.
+      </p>
+    </div>
+
+    <% if (!mistralConfigured) { %>
+      <div class="flash flash-error">
+        <code class="inline">MISTRAL_API_KEY</code> is not set on this server. Add it to the environment and restart
+        the app before image verification will work.
+      </div>
+    <% } %>
+
+    <div class="grid grid-2" style="align-items:start">
+      <div class="card stack stack-4">
+        <div>
+          <span class="card-title">Receipt screenshot</span>
+          <p class="hint" style="margin-top:4px">
+            Supports CBE and Telebirr only. Max about 12&nbsp;MB.
+          </p>
+        </div>
+
+        <label class="field">
+          <span class="label">Image file</span>
+          <input type="file" id="img-file" accept="image/*">
+        </label>
+
+        <label class="field">
+          <span class="label">CBE account suffix <span class="faint">— last 8 digits, required when auto-verifying CBE</span></span>
+          <input type="text" id="img-suffix" maxlength="8" placeholder="39003377" autocomplete="off">
+        </label>
+
+        <label class="switch">
+          <input type="checkbox" id="img-auto" checked>
+          <span>Auto-verify after OCR</span>
+        </label>
+
+        <div class="row">
+          <button class="btn btn-accent" id="img-run" <%= mistralConfigured ? '' : 'disabled' %>>
+            Analyse receipt
+          </button>
+          <span class="small muted" id="img-status"></span>
+        </div>
+      </div>
+
+      <div class="card card-flush">
+        <div class="card-head">
+          <span class="card-title">Result</span>
+          <span id="img-badge"></span>
+        </div>
+        <div class="card-body">
+          <pre id="img-output" style="min-height:280px;margin:0">Upload a screenshot to begin.</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-note" style="margin-top:22px">
+      <strong>API access.</strong> Machine clients can call
+      <code class="inline">POST /verify-image</code> only with an API key that belongs to an administrator account
+      (<code class="inline">x-veripay-key</code>). Regular user keys receive <code class="inline">403</code>.
+    </div>
+  </main>
+</div>
+
+<script>
+  (function () {
+    var runBtn = document.getElementById('img-run');
+    var output = document.getElementById('img-output');
+    var status = document.getElementById('img-status');
+    var badge = document.getElementById('img-badge');
+
+    function setBadge(ok, label) {
+      badge.className = 'badge ' + (ok ? 'badge-good' : 'badge-danger');
+      badge.textContent = label;
+    }
+
+    runBtn.addEventListener('click', async function () {
+      var fileInput = document.getElementById('img-file');
+      var file = fileInput.files && fileInput.files[0];
+
+      if (!file) {
+        status.textContent = 'Choose an image first.';
+        return;
+      }
+
+      runBtn.disabled = true;
+      status.textContent = 'Uploading and analysing…';
+      badge.textContent = '';
+      badge.className = '';
+      output.textContent = '';
+
+      var form = new FormData();
+      form.append('file', file);
+      form.append('autoVerify', document.getElementById('img-auto').checked ? 'true' : 'false');
+
+      var suffix = document.getElementById('img-suffix').value.trim();
+      if (suffix) form.append('suffix', suffix);
+
+      var started = Date.now();
+
+      try {
+        var response = await fetch('/admin/image/verify', {
+          method: 'POST',
+          body: form
+        });
+
+        var body = await response.json();
+        output.textContent = JSON.stringify(body, null, 2);
+        setBadge(response.ok, String(response.status));
+        status.textContent = 'Finished in ' + ((Date.now() - started) / 1000).toFixed(1) + 's';
+      } catch (err) {
+        output.textContent = String(err);
+        setBadge(false, 'error');
+        status.textContent = '';
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  })();
+</script>
+
+<%- include('../partials/footer') %>

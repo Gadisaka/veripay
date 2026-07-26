@@ -173,3 +173,27 @@ export const apiKeyAuth = async (req: Request, res: Response, next: NextFunction
     attachAccounting(req, res, startedAt);
     next();
 };
+
+/**
+ * Receipt-image verification is restricted to API keys owned by ADMIN accounts.
+ * System keys (VERIPAY_API_KEYS) are not enough — they are not tied to an admin user.
+ */
+export const requireAdminApiKey = (req: Request, res: Response, next: NextFunction): void => {
+    if (req.isSystemKey) {
+        res.status(403).json({
+            success: false,
+            error: 'Image verification requires an API key issued to an administrator account.'
+        });
+        return;
+    }
+
+    if (!req.apiKeyRecord || req.apiKeyRecord.user.role !== 'ADMIN') {
+        res.status(403).json({
+            success: false,
+            error: 'Image verification is restricted to administrator API keys.'
+        });
+        return;
+    }
+
+    next();
+};

@@ -1,39 +1,66 @@
-import { Mistral } from "@mistralai/mistralai";
-import fs from "fs";
-import { Request, Response } from "express";
-import multer from "multer";
-import logger from "../utils/logger";
-import { verifyTelebirr } from "./verifyTelebirr";
-import { verifyCBE } from "./verifyCBE";
-import dotenv from "dotenv";
+import { Mistral } from '@mistralai/mistralai';
+import fs from 'fs';
+import path from 'path';
+import { Request, Response } from 'express';
+import multer from 'multer';
+import logger from '../utils/logger';
+import { verifyTelebirr } from './verifyTelebirr';
+import { verifyCBE } from './verifyCBE';
 
-dotenv.config();
+const uploadsDir = path.join(process.cwd(), 'uploads');
 
-const upload = multer({ dest: "uploads/" });
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
-const client = new Mistral({
-    apiKey: process.env.MISTRAL_API_KEY!,
+export const imageUpload = multer({
+    dest: uploadsDir,
+    limits: { fileSize: 12 * 1024 * 1024 }
 });
 
-export const verifyImageHandler = [
-    upload.single("file"),
+export function isMistralConfigured(): boolean {
+    return Boolean(process.env.MISTRAL_API_KEY?.trim());
+}
 
-    async (req: Request, res: Response): Promise<void> => {
-        try {
-            const autoVerify = req.query.autoVerify === "true";
-            const accountSuffix = req.body?.suffix || null;
+function getMistralClient(): Mistral {
+    const apiKey = process.env.MISTRAL_API_KEY?.trim();
+    if (!apiKey) {
+        throw new Error('MISTRAL_API_KEY is not configured.');
+    }
+    return new Mistral({ apiKey });
+}
 
-            if (!req.file) {
-                logger.warn("No file uploaded");
-                res.status(400).json({ error: "No file uploaded" });
-                return;
+export interface ImageVerifyOptions {
+    autoVerify: boolean;
+    accountSuffix?: string | null;
+}
+
+export interface ImageVerifyResult {
+    httpStatus: number;
+    body: Record<string, unknown>;
+}
+
+/**
+ * OCR a receipt screenshot with Mistral, optionally running the real CBE/Telebirr
+ * verifier afterwards. Caller is responsible for cleaning up filePath.
+ */
+export async function processReceiptImage(
+    filePath: string,
+    options: ImageVerifyOptions
+): Promise<ImageVerifyResult> {
+    if (!isMistralConfigured()) {
+        return {
+            httpStatus: 503,
+            body: {
+                error: 'Image verification is not configured. Set MISTRAL_API_KEY on the server.'
             }
+        };
+    }
 
-            const filePath = req.file.path;
-            const imageBuffer = fs.readFileSync(filePath);
-            const base64Image = imageBuffer.toString("base64");
+    const imageBuffer = fs.readFileSync(filePath);
+    const base64Image = imageBuffer.toString('base64');
 
-            const prompt = `
+    const prompt = `
 You are a payment receipt analyzer. Based on the uploaded image, determine:
 - If the receipt was issued by Telebirr or the Commercial Bank of Ethiopia (CBE).
 - If it's a CBE receipt, extract the transaction ID (usually starts with 'FT').
@@ -52,108 +79,155 @@ Return this JSON format exactly:
 }
             `.trim();
 
-            logger.info("Sending image to Mistral Vision...");
+    logger.info('Sending image to Mistral Vision...');
 
-            const chatResponse = await client.chat.complete({
-                model: "pixtral-12b",
-                messages: [
+    const client = getMistralClient();
+    const chatResponse = await client.chat.complete({
+        model: 'pixtral-12b',
+        messages: [
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: prompt },
                     {
-                        role: "user",
-                        content: [
-                            { type: "text", text: prompt },
-                            {
-                                type: "image_url",
-                                imageUrl: `data:image/jpeg;base64,${base64Image}`,
-                            },
-                        ],
-                    },
-                ],
-                responseFormat: { type: "json_object" },
-            });
-
-            const messageContent = chatResponse.choices?.[0]?.message?.content;
-
-            if (!messageContent || typeof messageContent !== "string") {
-                logger.error("Invalid Mistral response", { messageContent });
-                res.status(500).json({ error: "Invalid OCR response" });
-                return;
-            }
-
-            const result = JSON.parse(messageContent);
-            logger.info("OCR Result", result);
-
-            if (result.type === "telebirr" && result.transaction_number) {
-                if (autoVerify) {
-                    try {
-                        const data = await verifyTelebirr(result.transaction_number);
-                        res.json({
-                            verified: true,
-                            type: "telebirr",
-                            reference: result.transaction_number,
-                            details: data,
-                        });
-                    } catch (verifyErr: any) {
-                        logger.error("Telebirr verification failed", { verifyErr });
-                        if (verifyErr.name === 'TelebirrVerificationError') {
-                            res.status(502).json({ error: verifyErr.message, details: verifyErr.details });
-                        } else {
-                            res.status(500).json({ error: "Verification failed for Telebirr" });
-                        }
+                        type: 'image_url',
+                        imageUrl: `data:image/jpeg;base64,${base64Image}`
                     }
-                } else {
-                    res.json({
-                        type: "telebirr",
-                        reference: result.transaction_number,
-                        forward_to: "/verify-telebirr",
-                    });
-                }
-                return;
+                ]
             }
+        ],
+        responseFormat: { type: 'json_object' }
+    });
 
-            if (result.type === "cbe" && result.transaction_id) {
-                if (!autoVerify) {
-                    res.json({
-                        type: "cbe",
-                        reference: result.transaction_id,
-                        forward_to: "/verify-cbe",
-                        accountSuffix: "required_from_user",
-                    });
-                    return;
+    const messageContent = chatResponse.choices?.[0]?.message?.content;
+
+    if (!messageContent || typeof messageContent !== 'string') {
+        logger.error('Invalid Mistral response', { messageContent });
+        return { httpStatus: 500, body: { error: 'Invalid OCR response' } };
+    }
+
+    const result = JSON.parse(messageContent) as {
+        type?: string;
+        transaction_id?: string;
+        transaction_number?: string;
+    };
+    logger.info('OCR Result', result);
+
+    const { autoVerify, accountSuffix } = options;
+
+    if (result.type === 'telebirr' && result.transaction_number) {
+        if (!autoVerify) {
+            return {
+                httpStatus: 200,
+                body: {
+                    type: 'telebirr',
+                    reference: result.transaction_number,
+                    forward_to: '/verify-telebirr'
                 }
-
-                if (!accountSuffix) {
-                    res.status(400).json({
-                        error: "Account suffix is required for CBE verification in autoVerify mode",
-                    });
-                    return;
-                }
-
-                try {
-                    const data = await verifyCBE(result.transaction_id, accountSuffix);
-                    res.json({
-                        verified: true,
-                        type: "cbe",
-                        reference: result.transaction_id,
-                        details: data,
-                    });
-                } catch (verifyErr) {
-                    logger.error("CBE verification failed", { verifyErr });
-                    res.status(500).json({ error: "Verification failed for CBE" });
-                }
-                return;
-            }
-
-            res.status(422).json({ error: "Unknown or unrecognized receipt type" });
-        } catch (err) {
-            logger.error(`Unexpected error in /verify-image: ${err instanceof Error ? err.message : String(err)}`, {
-                stack: err instanceof Error ? err.stack : undefined,
-            });
-            res.status(500).json({ error: "Something went wrong processing the image." });
-        } finally {
-            if (req.file?.path) {
-                fs.unlinkSync(req.file.path);
-                logger.debug("Temp file deleted", { path: req.file.path });
-            }
+            };
         }
-    },
+
+        try {
+            const data = await verifyTelebirr(result.transaction_number);
+            return {
+                httpStatus: 200,
+                body: {
+                    verified: true,
+                    type: 'telebirr',
+                    reference: result.transaction_number,
+                    details: data
+                }
+            };
+        } catch (verifyErr: unknown) {
+            logger.error('Telebirr verification failed', { verifyErr });
+            const err = verifyErr as { name?: string; message?: string; details?: unknown };
+            if (err.name === 'TelebirrVerificationError') {
+                return {
+                    httpStatus: 502,
+                    body: { error: err.message, details: err.details }
+                };
+            }
+            return { httpStatus: 500, body: { error: 'Verification failed for Telebirr' } };
+        }
+    }
+
+    if (result.type === 'cbe' && result.transaction_id) {
+        if (!autoVerify) {
+            return {
+                httpStatus: 200,
+                body: {
+                    type: 'cbe',
+                    reference: result.transaction_id,
+                    forward_to: '/verify-cbe',
+                    accountSuffix: 'required_from_user'
+                }
+            };
+        }
+
+        if (!accountSuffix) {
+            return {
+                httpStatus: 400,
+                body: {
+                    error: 'Account suffix is required for CBE verification in autoVerify mode'
+                }
+            };
+        }
+
+        try {
+            const data = await verifyCBE(result.transaction_id, accountSuffix);
+            return {
+                httpStatus: 200,
+                body: {
+                    verified: true,
+                    type: 'cbe',
+                    reference: result.transaction_id,
+                    details: data
+                }
+            };
+        } catch (verifyErr) {
+            logger.error('CBE verification failed', { verifyErr });
+            return { httpStatus: 500, body: { error: 'Verification failed for CBE' } };
+        }
+    }
+
+    return { httpStatus: 422, body: { error: 'Unknown or unrecognized receipt type' } };
+}
+
+function cleanupUpload(filePath?: string): void {
+    if (!filePath) return;
+    try {
+        fs.unlinkSync(filePath);
+        logger.debug('Temp file deleted', { path: filePath });
+    } catch {
+        // ignore
+    }
+}
+
+export const verifyImageHandler = [
+    imageUpload.single('file'),
+
+    async (req: Request, res: Response): Promise<void> => {
+        try {
+            if (!req.file) {
+                logger.warn('No file uploaded');
+                res.status(400).json({ error: 'No file uploaded' });
+                return;
+            }
+
+            const outcome = await processReceiptImage(req.file.path, {
+                autoVerify: req.query.autoVerify === 'true',
+                accountSuffix: typeof req.body?.suffix === 'string' ? req.body.suffix : null
+            });
+
+            res.status(outcome.httpStatus).json(outcome.body);
+        } catch (err) {
+            logger.error(
+                `Unexpected error in /verify-image: ${err instanceof Error ? err.message : String(err)}`,
+                { stack: err instanceof Error ? err.stack : undefined }
+            );
+            res.status(500).json({ error: 'Something went wrong processing the image.' });
+        } finally {
+            cleanupUpload(req.file?.path);
+        }
+    }
 ];
