@@ -119,10 +119,23 @@ export async function verifyCBELegacy(
             return await parseCBEReceipt(pdfRes.data);
         } catch (puppetErr: any) {
             logger.error('❌ Puppeteer failed:', puppetErr.message);
-            if (browser) await browser.close();
+            if (browser) {
+                try {
+                    await browser.close();
+                } catch {
+                    // ignore close errors after a failed launch
+                }
+            }
+
+            const hint =
+                typeof puppetErr.message === 'string' && puppetErr.message.includes('shared libraries')
+                    ? ' Chrome/Puppeteer cannot start on this host (missing OS libraries). Shared Plesk hosts usually cannot fix this — use a VPS with Chromium installed, set PUPPETEER_EXECUTABLE_PATH to a working Chrome binary, or verify new-style CBE receipt links that use the JSON API instead of PDF scraping.'
+                    : '';
+
             return {
                 success: false,
-                error: `Both direct and Puppeteer failed: ${puppetErr.message}`
+                error: `Both direct and Puppeteer failed: ${puppetErr.message}.${hint}`,
+                statusCode: 503
             };
         }
     }

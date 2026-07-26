@@ -144,10 +144,24 @@ Return this JSON format exactly:
             if (err.name === 'TelebirrVerificationError') {
                 return {
                     httpStatus: 502,
-                    body: { error: err.message, details: err.details }
+                    body: {
+                        verified: false,
+                        type: 'telebirr',
+                        reference: result.transaction_number,
+                        error: err.message,
+                        details: err.details
+                    }
                 };
             }
-            return { httpStatus: 500, body: { error: 'Verification failed for Telebirr' } };
+            return {
+                httpStatus: 500,
+                body: {
+                    verified: false,
+                    type: 'telebirr',
+                    reference: result.transaction_number,
+                    error: 'Verification failed for Telebirr'
+                }
+            };
         }
     }
 
@@ -168,6 +182,9 @@ Return this JSON format exactly:
             return {
                 httpStatus: 400,
                 body: {
+                    verified: false,
+                    type: 'cbe',
+                    reference: result.transaction_id,
                     error: 'Account suffix is required for CBE verification in autoVerify mode'
                 }
             };
@@ -175,6 +192,26 @@ Return this JSON format exactly:
 
         try {
             const data = await verifyCBE(result.transaction_id, accountSuffix);
+
+            if (!data.success) {
+                const puppeteerMissing =
+                    typeof data.error === 'string' &&
+                    (data.error.includes('shared libraries') || data.error.includes('Failed to launch the browser'));
+
+                return {
+                    httpStatus: puppeteerMissing ? 503 : data.statusCode && data.statusCode >= 400 ? data.statusCode : 502,
+                    body: {
+                        verified: false,
+                        type: 'cbe',
+                        reference: result.transaction_id,
+                        error: puppeteerMissing
+                            ? 'OCR found the CBE reference, but this server cannot run Chrome/Puppeteer (missing system libraries). Use OCR-only mode, or verify the reference with POST /verify-cbe from a host that supports Chromium. New CBE receipt links (mbreciept.cbe.com.et) do not need Puppeteer.'
+                            : data.error || 'CBE verification failed',
+                        details: data
+                    }
+                };
+            }
+
             return {
                 httpStatus: 200,
                 body: {
@@ -186,7 +223,15 @@ Return this JSON format exactly:
             };
         } catch (verifyErr) {
             logger.error('CBE verification failed', { verifyErr });
-            return { httpStatus: 500, body: { error: 'Verification failed for CBE' } };
+            return {
+                httpStatus: 500,
+                body: {
+                    verified: false,
+                    type: 'cbe',
+                    reference: result.transaction_id,
+                    error: 'Verification failed for CBE'
+                }
+            };
         }
     }
 
