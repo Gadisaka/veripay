@@ -206,6 +206,80 @@
   .keybar h3 { margin: 0 0 2px; font-size: 15px; }
   .keygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
 
+  /* ---------- prompt generator ---------- */
+
+  .prompt-box {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin: 18px 0;
+  }
+  .prompt-banks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin: 10px 0 16px;
+  }
+  .prompt-banks label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13.5px;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+  }
+  .prompt-banks input { accent-color: var(--accent); width: 15px; height: 15px; }
+  .prompt-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .prompt-toolbar .field { margin: 0; flex: 1 1 220px; min-width: 180px; }
+  .prompt-toolbar select {
+    width: 100%;
+    padding: 9px 11px;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    background: var(--code-bg);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+  }
+  .prompt-toolbar select:focus { outline: none; border-color: var(--accent); }
+  .prompt-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  button.prompt-btn {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    padding: 9px 16px;
+    border-radius: 7px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  button.prompt-btn:hover { border-color: #2e343d; background: #1c2028; }
+  button.prompt-btn.primary {
+    background: var(--accent);
+    color: #04150a;
+    border-color: var(--accent);
+  }
+  button.prompt-btn.primary:hover { background: #38c56d; border-color: #38c56d; }
+  #prompt-output {
+    max-height: 520px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+  .prompt-hint { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+
   @media (max-width: 900px) {
     nav.sidebar { display: none; }
     main { padding: 26px 20px 80px; }
@@ -229,6 +303,7 @@
   <a href="#overview">Overview</a>
   <a href="#auth">Authentication</a>
   <a href="#quickstart">Quick start</a>
+  <a href="#prompt">Prompt</a>
   <div class="group">Endpoints</div>
   <a href="#verify">Smart router</a>
   <a href="#cbe">CBE</a>
@@ -361,6 +436,57 @@ if (response.ok &amp;&amp; result.success) {
       <code class="inline">response.ok</code> as well as the body — a failed verification can arrive with a
       <code class="inline">4xx</code> status.
     </p>
+  </section>
+
+  <section id="prompt">
+    <h2>Prompt</h2>
+    <p>
+      Generate a detailed integration brief you can paste into Cursor, ChatGPT, Claude, or hand to a backend engineer.
+      Choose the providers you need and the language you build in. The prompt includes endpoints, headers, request and
+      response JSON, normalisation rules, and a checkout checklist. Keep your API key on the server — never in the browser.
+    </p>
+
+    <div class="prompt-box">
+      <h4 style="margin-top:0">Providers to integrate</h4>
+      <div class="prompt-banks" id="prompt-banks">
+        <label><input type="checkbox" name="bank" value="cbe" checked> CBE</label>
+        <label><input type="checkbox" name="bank" value="telebirr" checked> Telebirr</label>
+        <label><input type="checkbox" name="bank" value="dashen" checked> Dashen</label>
+        <label><input type="checkbox" name="bank" value="abyssinia" checked> Bank of Abyssinia</label>
+        <label><input type="checkbox" name="bank" value="cbebirr" checked> CBE Birr</label>
+        <label><input type="checkbox" name="bank" value="mpesa" checked> M-Pesa</label>
+        <label><input type="checkbox" name="bank" value="image"> Receipt image</label>
+      </div>
+      <p class="prompt-hint">
+        CBE Birr needs your own <code class="inline">x-api-key</code> credential in addition to Veripay.
+        M-Pesa is not covered by the smart router — the prompt includes <code class="inline">POST /verify-mpesa</code> when selected.
+      </p>
+
+      <div class="prompt-toolbar">
+        <div class="field">
+          <label for="prompt-lang">Target language / stack</label>
+          <select id="prompt-lang">
+            <option value="any" selected>Any / HTTP-only (language-agnostic)</option>
+            <option value="node">Node.js (Express / Nest / fetch)</option>
+            <option value="python">Python (FastAPI / Django / httpx)</option>
+            <option value="php">PHP (Laravel / Guzzle)</option>
+            <option value="go">Go (net/http / Gin / Echo)</option>
+            <option value="java">Java (Spring / HttpClient)</option>
+            <option value="csharp">C# (ASP.NET / HttpClient)</option>
+            <option value="ruby">Ruby (Rails / Faraday)</option>
+            <option value="rust">Rust (reqwest / Axum / Actix)</option>
+          </select>
+        </div>
+        <div class="prompt-actions">
+          <button type="button" class="prompt-btn" id="prompt-select-all">Select all</button>
+          <button type="button" class="prompt-btn" id="prompt-clear">Clear</button>
+          <button type="button" class="prompt-btn primary" id="prompt-copy">Copy prompt</button>
+        </div>
+      </div>
+
+      <pre id="prompt-output" aria-live="polite">Select at least one provider to generate a prompt.</pre>
+      <p class="prompt-hint" id="prompt-copy-status" hidden></p>
+    </div>
   </section>
 
   <section id="verify">
@@ -1196,6 +1322,604 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
     }, { rootMargin: '-10% 0px -80% 0px' });
     sections.forEach(function (section) { observer.observe(section); });
   }
+})();
+
+// ── Integration prompt generator ─────────────────────────────────────────────
+(function () {
+  var BASE = 'https://payment.offsetsoftware.net';
+  var output = document.getElementById('prompt-output');
+  var langSelect = document.getElementById('prompt-lang');
+  var copyBtn = document.getElementById('prompt-copy');
+  var selectAllBtn = document.getElementById('prompt-select-all');
+  var clearBtn = document.getElementById('prompt-clear');
+  var statusEl = document.getElementById('prompt-copy-status');
+  var bankBox = document.getElementById('prompt-banks');
+
+  if (!output || !langSelect || !bankBox) return;
+
+  var PROVIDERS = {
+    cbe: {
+      name: 'Commercial Bank of Ethiopia (CBE)',
+      code: 'CBE',
+      router: true,
+      path: '/verify-cbe',
+      notes: [
+        'Accepts legacy FT + 8-digit accountSuffix, new receipt tokens, or full https://mbreciept.cbe.com.et/{token} URLs.',
+        'For POST /verify use fields reference + suffix (8 digits) for legacy FT; omit suffix for new token/URL forms.',
+        'Response is FLAT (fields at top level, not under data).'
+      ],
+      request: {
+        reference: 'FT2513001V2G',
+        accountSuffix: '39003377'
+      },
+      response: {
+        success: true,
+        payer: 'Abebe Bekele',
+        payerAccount: '1****4567',
+        receiver: 'Kebede Alemu',
+        receiverAccount: '1****8901',
+        amount: 1500,
+        date: '2026-07-20T09:14:00.000Z',
+        reference: 'FT2513001V2G',
+        reason: 'Payment for services'
+      },
+      normalize: 'payer ← payer; receiver ← receiver; amount ← amount (number); date ← date; reference ← reference'
+    },
+    telebirr: {
+      name: 'Telebirr',
+      code: 'TELEBIRR',
+      router: true,
+      path: '/verify-telebirr',
+      notes: [
+        '10-character receipt number, e.g. CE2513001X.',
+        'For POST /verify send only reference (no suffix, no phoneNumber).',
+        'Response is WRAPPED under data. Amounts are strings like "1,500.00 Birr".'
+      ],
+      request: { reference: 'CE2513001X' },
+      response: {
+        success: true,
+        data: {
+          payerName: 'Abebe Bekele',
+          payerTelebirrNo: '251911***456',
+          creditedPartyName: 'Kebede Alemu',
+          creditedPartyAccountNo: '251922***789',
+          bankName: '',
+          transactionStatus: 'Completed',
+          receiptNo: 'CE2513001X',
+          paymentDate: '20/07/2026 09:14:11',
+          settledAmount: '1,500.00 Birr',
+          serviceFee: '0.0 Birr',
+          serviceFeeVAT: '0.0 Birr',
+          totalPaidAmount: '1,500.00 Birr',
+          customerNote: 'Invoice 4821'
+        }
+      },
+      normalize: 'payer ← data.payerName; receiver ← data.creditedPartyName; amount ← parseNumber(data.settledAmount); date ← data.paymentDate; reference ← data.receiptNo'
+    },
+    dashen: {
+      name: 'Dashen Bank',
+      code: 'DASHEN',
+      router: true,
+      path: '/verify-dashen',
+      notes: [
+        '16-character reference; first 3 characters are digits.',
+        'For POST /verify send only reference (no extra fields).',
+        'Response is FLAT. Amount lives at transactionAmount (not amount).'
+      ],
+      request: { reference: '3001234567890123' },
+      response: {
+        success: true,
+        senderName: 'Abebe Bekele',
+        senderAccountNumber: '1234567890',
+        transactionChannel: 'Mobile Banking',
+        serviceType: 'Fund Transfer',
+        narrative: 'Payment for services',
+        receiverName: 'Kebede Alemu',
+        phoneNo: '251912345678',
+        institutionName: 'Dashen Bank',
+        transactionReference: '3001234567890123',
+        transferReference: 'TRF123456',
+        transactionDate: '2026-07-20T09:14:00.000Z',
+        transactionAmount: 1000,
+        serviceCharge: 5,
+        vat: 0.75,
+        exciseTax: 0,
+        stampDuty: 0,
+        total: 1005.75
+      },
+      normalize: 'payer ← senderName; receiver ← receiverName; amount ← transactionAmount; date ← transactionDate; reference ← transactionReference'
+    },
+    abyssinia: {
+      name: 'Bank of Abyssinia',
+      code: 'ABYSSINIA',
+      router: true,
+      path: '/verify-abyssinia',
+      notes: [
+        'Requires reference + exactly 5-digit suffix (last 5 of account).',
+        'For POST /verify use reference + suffix of length 5 (not 8 — that routes to CBE).',
+        'Response is NESTED TWICE: payment fields at data.amount, data.payer, etc.'
+      ],
+      request: { reference: 'FT23062669JJ', suffix: '90172' },
+      response: {
+        success: true,
+        data: {
+          success: true,
+          payer: 'Abebe Bekele',
+          payerAccount: '12345678901',
+          receiver: 'Kebede Alemu',
+          amount: 1500,
+          date: '2026-07-20T09:14:00.000Z',
+          reference: 'FT23062669JJ',
+          reason: 'Payment for services'
+        }
+      },
+      normalize: 'payer ← data.payer; receiver ← data.receiver; amount ← data.amount; date ← data.date; reference ← data.reference'
+    },
+    cbebirr: {
+      name: 'CBE Birr',
+      code: 'CBE_BIRR',
+      router: true,
+      path: '/verify-cbebirr',
+      notes: [
+        'Requires TWO headers: x-veripay-key (Veripay) AND x-api-key (caller’s own CBE Birr credential).',
+        'Dedicated body uses receiptNumber + phoneNumber (251XXXXXXXXX).',
+        'For POST /verify use reference (10 alphanumeric) + phoneNumber, and still send x-api-key.',
+        'Success response is FLAT and often has NO success field — treat HTTP 200 + amount present as success.'
+      ],
+      request: { receiptNumber: '1234567890', phoneNumber: '251912345678' },
+      response: {
+        customerName: 'Abebe Bekele',
+        debitAccount: '251911***456',
+        creditAccount: '1000***7890',
+        receiverName: 'Kebede Alemu',
+        orderId: 'ORD123456',
+        transactionStatus: 'Completed',
+        reference: 'CBE123456',
+        receiptNumber: '1234567890',
+        transactionDate: '2026-07-20 09:14:00',
+        amount: '1500.00',
+        paidAmount: '1500.00',
+        serviceCharge: '0.00',
+        vat: '0.00',
+        totalPaidAmount: '1500.00',
+        paymentReason: 'Payment for services',
+        paymentChannel: 'CBE Birr'
+      },
+      normalize: 'payer ← customerName; receiver ← receiverName; amount ← parseNumber(amount or paidAmount); date ← transactionDate; reference ← receiptNumber or reference'
+    },
+    mpesa: {
+      name: 'M-Pesa',
+      code: 'MPESA',
+      router: false,
+      path: '/verify-mpesa',
+      notes: [
+        'NOT handled by POST /verify. Always call POST /verify-mpesa.',
+        'Body field is reference (NOT receiptNumber — that name is rejected with 400).',
+        'Response is FLAT.'
+      ],
+      request: { reference: 'SGH4KJ2L9M' },
+      response: {
+        success: true,
+        payerName: 'Abebe Bekele',
+        payerAccount: '251911***456',
+        receiverName: 'Kebede Alemu',
+        receiverAccount: '251922***789',
+        transactionId: 'SGH4KJ2L9M',
+        receiptNo: 'SGH4KJ2L9M',
+        paymentDate: '2026-07-20T09:14:00.000Z',
+        amount: 1500,
+        serviceFee: 0,
+        vat: 0
+      },
+      normalize: 'payer ← payerName; receiver ← receiverName; amount ← amount; date ← paymentDate; reference ← receiptNo or reference'
+    },
+    image: {
+      name: 'Receipt image (OCR)',
+      code: 'IMAGE',
+      router: false,
+      path: '/verify-image',
+      notes: [
+        'multipart/form-data, not JSON. Field file is required; optional suffix for CBE; query ?autoVerify=true to verify after OCR.',
+        'Does NOT use the success convention. Check HTTP status. Failures are { "error": "..." }.',
+        'Without autoVerify returns type, reference, forward_to. With autoVerify returns verified, type, reference, details.'
+      ],
+      requestNote: 'FormData: file=<screenshot>, optional suffix=39003377; URL may include ?autoVerify=true',
+      response: {
+        verified: true,
+        type: 'telebirr',
+        reference: 'CE2513001X',
+        details: { payerName: 'Abebe Bekele', settledAmount: '1,500.00 Birr' }
+      },
+      normalize: 'If autoVerify: map details into the normalized shape using the provider hinted by type; else call the forward_to endpoint with the extracted reference.'
+    }
+  };
+
+  var LANG = {
+    any: {
+      title: 'Any language / HTTP-only',
+      body: [
+        'Implement with plain HTTPS. Do not assume a framework.',
+        'POST JSON with Content-Type: application/json (except /verify-image which is multipart).',
+        'Send header x-veripay-key from a server-side secret (env var VERIPAY_KEY).',
+        'For CBE Birr also send header x-api-key with the merchant’s CBE Birr credential.',
+        'Use a 90s request timeout — legacy CBE PDF lookups can be slow.',
+        'Parse JSON; never trust HTTP 200 alone — also check success / normalized fields.',
+        'Expose one server endpoint your frontend calls (e.g. POST /api/confirm-payment) that calls Veripay.'
+      ]
+    },
+    node: {
+      title: 'Node.js',
+      body: [
+        'Use native fetch (Node 18+) or undici. Framework: Express or NestJS is fine.',
+        'Store VERIPAY_KEY in process.env. Never ship it to the browser.',
+        'Create a module verifyPayment({ reference, suffix?, phoneNumber? }) that calls POST /verify (and /verify-mpesa when needed).',
+        'Normalize the JSON into { success, provider, payer, receiver, amount, date, reference }.',
+        'Add an Express/Nest route that your UI posts to; that route calls the module and updates the order.',
+        'For /verify-image use FormData / Blob; do not set Content-Type manually.'
+      ]
+    },
+    python: {
+      title: 'Python',
+      body: [
+        'Use httpx or requests. Framework: FastAPI or Django REST is fine.',
+        'Read VERIPAY_KEY from the environment.',
+        'Implement async or sync verify_payment(...) calling BASE + "/verify" with json= and headers={"x-veripay-key": ...}.',
+        'Normalize responses with a helper that walks data / data.data nesting.',
+        'Expose a server endpoint (e.g. FastAPI POST /confirm-payment) that never returns the raw Veripay key to clients.',
+        'Timeouts: at least 90 seconds for verification calls.'
+      ]
+    },
+    php: {
+      title: 'PHP',
+      body: [
+        'Use Guzzle or cURL. Framework: Laravel controllers are fine.',
+        'Read VERIPAY_KEY from env (.env → config).',
+        'POST JSON with headers Content-Type: application/json and x-veripay-key.',
+        'Decode with json_decode($body, true) and normalize nested arrays.',
+        'Put the call behind a Laravel route/controller your frontend hits — never call Veripay from Blade/JS with the key.',
+        'For image upload use multipart with Guzzle multipart option.'
+      ]
+    },
+    go: {
+      title: 'Go',
+      body: [
+        'Use net/http or a thin client. Framework: Gin or Echo is fine.',
+        'Read VERIPAY_KEY from the environment.',
+        'POST with http.NewRequest, Header.Set("x-veripay-key", key), Content-Type application/json.',
+        'Decode into map[string]any or typed structs; write a Normalize(provider, payload) helper for nesting quirks.',
+        'Expose your own HTTP handler that accepts the buyer reference and calls Veripay server-side.',
+        'Set client.Timeout to at least 90s.'
+      ]
+    },
+    java: {
+      title: 'Java',
+      body: [
+        'Use java.net.http.HttpClient or Spring WebClient/RestClient.',
+        'Inject VERIPAY_KEY from application properties / env.',
+        'POST JSON; add header x-veripay-key. For CBE Birr also x-api-key.',
+        'Parse with Jackson into JsonNode or Map; normalize field paths per provider.',
+        'Expose a Spring @RestController endpoint your frontend calls.',
+        'Configure read timeout ≥ 90s.'
+      ]
+    },
+    csharp: {
+      title: 'C# / .NET',
+      body: [
+        'Use HttpClient (IHttpClientFactory). Framework: ASP.NET Minimal APIs or Controllers.',
+        'Read VERIPAY_KEY from configuration / environment.',
+        'PostAsJsonAsync to BASE + "/verify" with DefaultRequestHeaders for x-veripay-key.',
+        'Deserialize with System.Text.Json (JsonDocument or JsonElement) and normalize nesting.',
+        'Keep Veripay calls in a server service; the browser only talks to your API.',
+        'Timeout ≥ 90 seconds.'
+      ]
+    },
+    ruby: {
+      title: 'Ruby',
+      body: [
+        'Use Net::HTTP or Faraday. Framework: Rails controller is fine.',
+        'Read VERIPAY_KEY from ENV / credentials.',
+        'POST JSON with headers; parse with JSON.parse.',
+        'Normalize with a small Hash helper for data / nested data.',
+        'Add a Rails route that your frontend posts to; that controller calls Veripay.',
+        'Open timeouts ≥ 90s.'
+      ]
+    },
+    rust: {
+      title: 'Rust',
+      body: [
+        'Use reqwest. Framework: Axum or Actix Web is fine.',
+        'Read VERIPAY_KEY from the environment.',
+        'client.post(url).header("x-veripay-key", key).json(&body).send().await',
+        'Deserialize with serde_json::Value and normalize field paths.',
+        'Expose your own HTTP route; never embed the key in WASM/frontend.',
+        'Timeout ≥ 90s.'
+      ]
+    }
+  };
+
+  function selectedIds() {
+    return Array.prototype.slice
+      .call(bankBox.querySelectorAll('input[name="bank"]:checked'))
+      .map(function (el) { return el.value; });
+  }
+
+  function j(obj) {
+    return JSON.stringify(obj, null, 2);
+  }
+
+  function buildPrompt() {
+    var ids = selectedIds();
+    if (!ids.length) {
+      return 'Select at least one provider to generate a prompt.';
+    }
+
+    var langKey = langSelect.value;
+    var lang = LANG[langKey] || LANG.any;
+    var selected = ids.map(function (id) { return PROVIDERS[id]; }).filter(Boolean);
+    var routerOnes = selected.filter(function (p) { return p.router; });
+    var lines = [];
+
+    function push() {
+      for (var i = 0; i < arguments.length; i++) lines.push(arguments[i]);
+    }
+
+    push(
+      '# Veripay payment verification — integration brief',
+      '',
+      'You are implementing server-side payment verification for an Ethiopian/Kenyan checkout using the Veripay HTTP API.',
+      'Do not put the API key in browser JavaScript, mobile apps’ public bundles, or client-side code.',
+      'The frontend must call OUR backend; OUR backend calls Veripay.',
+      '',
+      '## Base URL',
+      '',
+      BASE,
+      '',
+      '## Authentication',
+      '',
+      '- Header on every verification call: `x-veripay-key: <VERIPAY_KEY>`',
+      '- Store the key as environment variable `VERIPAY_KEY` (value looks like `vp_live_…`).',
+      '- Missing key → HTTP 401. Invalid/revoked key → HTTP 403.',
+      '- Responses include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-Quota-Limit`, `X-Quota-Remaining`.',
+      '- Exceeding limits → HTTP 429. Back off using Retry-After when present.',
+      '- `GET /health` is public and needs no key.',
+      ''
+    );
+
+    if (ids.indexOf('cbebirr') !== -1) {
+      push(
+        '### Extra header for CBE Birr only',
+        '',
+        '- Also send `x-api-key: <merchant CBE Birr credential>` (this is NOT the Veripay key).',
+        '- `Authorization: Bearer <credential>` is accepted as an alternative spelling for that CBE Birr credential.',
+        ''
+      );
+    }
+
+    push(
+      '## Preferred verification flow',
+      ''
+    );
+
+    if (routerOnes.length) {
+      push(
+        'Use `POST ' + BASE + '/verify` (smart router) for these selected providers: ' +
+          routerOnes.map(function (p) { return p.code; }).join(', ') + '.',
+        '',
+        'Request JSON:',
+        '```json',
+        j({
+          reference: 'string (required)',
+          suffix: 'optional — 8 digits for legacy CBE, 5 digits for Bank of Abyssinia',
+          phoneNumber: 'optional — CBE Birr only, form 251XXXXXXXXX'
+        }),
+        '```',
+        '',
+        'Routing rules relevant to the selected banks:',
+        ''
+      );
+      if (ids.indexOf('dashen') !== -1) {
+        push('- Dashen: 16-char reference, first 3 are digits → no extra fields.');
+      }
+      if (ids.indexOf('cbe') !== -1) {
+        push(
+          '- CBE legacy: 12-char FT… + suffix length 8.',
+          '- CBE legacy link: apps.cbe.com.et URL (suffix embedded).',
+          '- CBE new: token or mbreciept.cbe.com.et URL → no suffix.'
+        );
+      }
+      if (ids.indexOf('abyssinia') !== -1) {
+        push('- Bank of Abyssinia: 12-char FT… + suffix length exactly 5.');
+      }
+      if (ids.indexOf('cbebirr') !== -1) {
+        push('- CBE Birr: 10 alphanumeric reference + phoneNumber + x-api-key header.');
+      }
+      if (ids.indexOf('telebirr') !== -1) {
+        push('- Telebirr: 10 alphanumeric reference, no extra fields.');
+      }
+      push(
+        '',
+        'Sending a field a provider does not expect returns HTTP 400 (not silently ignored).',
+        ''
+      );
+    } else {
+      push(
+        'No smart-router providers were selected. Use the dedicated endpoints below.',
+        ''
+      );
+    }
+
+    if (ids.indexOf('mpesa') !== -1) {
+      push(
+        '### M-Pesa exception',
+        '',
+        'M-Pesa is NOT routed by `POST /verify`. Always call `POST ' + BASE + '/verify-mpesa` with `{ "reference": "..." }`.',
+        ''
+      );
+    }
+
+    push('## Selected provider API details', '');
+
+    selected.forEach(function (p) {
+      push('### ' + p.name, '');
+      push('- Dedicated endpoint: `POST ' + BASE + p.path + '`');
+      push('- Covered by smart router (`POST /verify`): ' + (p.router ? 'yes' : 'no'));
+      p.notes.forEach(function (n) { push('- ' + n); });
+      push('');
+      if (p.request) {
+        push('Example request body:', '```json', j(p.request), '```', '');
+      } else if (p.requestNote) {
+        push('Request: ' + p.requestNote, '');
+      }
+      push('Example success response:', '```json', j(p.response), '```', '');
+      push('Normalization mapping: ' + p.normalize, '');
+      push(
+        'Example failure body (typical):',
+        '```json',
+        j({ success: false, error: 'Receipt not found or could not be verified.' }),
+        '```',
+        ''
+      );
+    });
+
+    push(
+      '## Normalized internal shape (required)',
+      '',
+      'No matter which provider answered, map into this structure before your checkout logic runs:',
+      '',
+      '```json',
+      j({
+        success: true,
+        provider: selected.map(function (p) { return p.code; }).filter(function (c) { return c !== 'IMAGE'; }).join('|') || 'PROVIDER',
+        payer: '...',
+        receiver: '...',
+        amount: 1500,
+        date: '...',
+        reference: '...'
+      }),
+      '```',
+      '',
+      'Rules:',
+      '- `amount` must be a number (strip commas and "Birr" from Telebirr/CBE Birr strings).',
+      '- For Abyssinia, unwrap `data` (and ignore the inner nested `success` except as a signal).',
+      '- For Telebirr, read fields from `data`.',
+      '- For Dashen, use `transactionAmount`.',
+      '- For CBE Birr success responses without `success`, treat HTTP 200 + parseable amount as success.',
+      '- `POST /verify` returns the provider’s native shape (not always a uniform envelope).',
+      ''
+    );
+
+    push(
+      '## Checkout / fulfillment rules',
+      '',
+      'Only mark an order paid when ALL of the following hold:',
+      '1. HTTP status indicates a handled success path (usually 200) AND normalized `success === true` (or CBE Birr equivalent).',
+      '2. Normalized `amount` is >= the order total (or exactly equal — pick one policy and stick to it).',
+      '3. Receiver name/account matches your expected merchant destination for that provider.',
+      '4. The payment `reference` has not already been applied to another order (idempotent upsert on reference).',
+      '',
+      'Never trust the buyer’s claimed amount alone — always use the amount returned by Veripay.',
+      ''
+    );
+
+    push(
+      '## HTTP status codes',
+      '',
+      '| Code | Meaning | Action |',
+      '| --- | --- | --- |',
+      '| 200 | Request handled | Still check body success / fields |',
+      '| 400 | Bad payload | Fix fields; do not treat as “payment failed” retry loop |',
+      '| 401 | Missing Veripay key | Configure VERIPAY_KEY |',
+      '| 403 | Invalid/revoked key | Rotate key in dashboard |',
+      '| 404 | Receipt not found | Ask buyer to re-check reference |',
+      '| 422 | Found but unreadable | Retry once later |',
+      '| 429 | Rate/quota limit | Back off |',
+      '| 500 | Server error | Retry with exponential backoff |',
+      '| 502 | Provider unreachable | Retry later (bank/telco/geo) |',
+      '',
+      'Retry only 500 and 502 (and optionally 429 after delay). Do not retry 400/401/403 as if the customer’s payment failed.',
+      ''
+    );
+
+    push('## Implement in: ' + lang.title, '');
+    lang.body.forEach(function (line) { push('- ' + line); });
+    push('');
+
+    push(
+      '## Deliverables checklist',
+      '',
+      '- [ ] `VERIPAY_KEY` loaded from environment (and CBE Birr credential if that provider is selected)',
+      '- [ ] One server-side verify function that calls Veripay for the selected providers',
+      '- [ ] Response normalisation into the internal shape above',
+      '- [ ] One checkout/confirm endpoint that applies the fulfillment rules',
+      '- [ ] Idempotency on payment reference',
+      '- [ ] Unit/integration tests with mocked JSON fixtures for each selected provider:',
+      ''
+    );
+    selected.forEach(function (p) {
+      push('  - [ ] Fixture for ' + p.code + ' success response');
+    });
+    push(
+      '- [ ] No API key in frontend code',
+      '- [ ] Timeouts ≥ 90s on verification HTTP calls',
+      '',
+      '## Docs reference',
+      '',
+      BASE.replace(/\/$/, '') + '/docs',
+      '',
+      'Follow this brief exactly. Prefer `POST /verify` when the provider supports it; use dedicated paths when required (especially M-Pesa and image).'
+    );
+
+    return lines.join('\n');
+  }
+
+  function refresh() {
+    output.textContent = buildPrompt();
+  }
+
+  function setAll(checked) {
+    bankBox.querySelectorAll('input[name="bank"]').forEach(function (el) {
+      el.checked = checked;
+    });
+    refresh();
+  }
+
+  bankBox.addEventListener('change', refresh);
+  langSelect.addEventListener('change', refresh);
+
+  selectAllBtn.addEventListener('click', function () { setAll(true); });
+  clearBtn.addEventListener('click', function () { setAll(false); });
+
+  copyBtn.addEventListener('click', function () {
+    var text = buildPrompt();
+    if (text.indexOf('Select at least one') === 0) {
+      statusEl.hidden = false;
+      statusEl.textContent = 'Select at least one provider first.';
+      return;
+    }
+
+    function done(ok) {
+      statusEl.hidden = false;
+      statusEl.textContent = ok ? 'Copied to clipboard.' : 'Could not copy — select the text manually.';
+      setTimeout(function () { statusEl.hidden = true; }, 2500);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }).catch(function () { done(false); });
+    } else {
+      var range = document.createRange();
+      range.selectNodeContents(output);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      try {
+        done(document.execCommand('copy'));
+      } catch (e) {
+        done(false);
+      }
+    }
+  });
+
+  refresh();
 })();
 </script>
 </body>
