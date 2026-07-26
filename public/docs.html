@@ -1306,7 +1306,9 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
   document.querySelectorAll('[data-try]').forEach(buildPanel);
 
   // Highlight the section currently in view.
-  var links = Array.prototype.slice.call(document.querySelectorAll('nav a'));
+  // Only hash links — href="/" is not a valid querySelector and would abort the script
+  // before the prompt generator below can run.
+  var links = Array.prototype.slice.call(document.querySelectorAll('nav a[href^="#"]'));
   var sections = links
     .map(function (link) { return document.querySelector(link.getAttribute('href')); })
     .filter(Boolean);
