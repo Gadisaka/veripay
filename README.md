@@ -3,6 +3,10 @@
 This API provides verification services for payment transactions made through **Commercial Bank of Ethiopia (CBE)**, **Telebirr**, **Dashen Bank**, **Bank of Abyssinia**, **CBE Birr**, and **M-Pesa** mobile payment platforms in Ethiopia.  
 It allows applications to verify the authenticity and details of payment receipts by reference numbers or uploaded images.
 
+It ships with a web front end: a landing page with a public verification widget, a Google-authenticated
+dashboard where developers issue their own API keys, and an admin console at `/admin`. The service is free —
+there are no plans, credits or billing.
+
 > ⚠️ **Disclaimer**: This is **not an official API**. I am **not affiliated with Ethio Telecom, Telebirr, or Commercial Bank of Ethiopia (CBE)**. This tool is built for personal and developer utility purposes only and scrapes publicly available data.
 
 ---
@@ -126,14 +130,16 @@ This will skip the primary Telebirr receipt fetch entirely and go straight to th
 ## ⚙️ Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/Vixen878/verifier-api
-
-# Navigate to the project directory
 cd verifier-api
+npm install
+cp .env.example .env
+```
 
-# Install dependencies
-pnpm install
+Fill in `DATABASE_URL`, `SESSION_SECRET`, `APP_URL` and the Google credentials, then apply the schema:
+
+```bash
+npx prisma migrate deploy
 ```
 
 ---
@@ -143,15 +149,78 @@ pnpm install
 ### 🛠 Development
 
 ```bash
-pnpm dev
+npm run dev
 ```
+
+Without Google credentials, `/auth/dev-login` signs you in as `DEV_LOGIN_EMAIL` so the dashboard is usable
+locally. It is disabled whenever `NODE_ENV=production`.
 
 ### 🚀 Production Build
 
 ```bash
-pnpm build
-pnpm start
+npm run deploy   # prisma migrate deploy && prisma generate && tsc
+npm start
 ```
+
+---
+
+## 🔐 Accounts, keys and quotas
+
+The API is free but not anonymous: callers sign in with Google and issue their own keys.
+
+| Surface | Path | Who can reach it |
+| --- | --- | --- |
+| Landing page and public widget | `/` | Anyone, rate-limited per IP |
+| Documentation | `/docs` | Anyone |
+| Dashboard | `/dashboard` | Signed-in users |
+| Admin console | `/admin` | Users with the `ADMIN` role |
+
+Send the key in the `x-veripay-key` header. It is deliberately **not** `x-api-key`, because the CBE Birr
+routes already use that header for the caller's own CBE Birr bearer token.
+
+```bash
+curl -X POST https://payment.offsetsoftware.net/verify \
+  -H 'content-type: application/json' \
+  -H 'x-veripay-key: vp_live_…' \
+  -d '{"reference":"FT25123ABCD","suffix":"12345678"}'
+```
+
+Keys are stored as SHA-256 hashes and shown once at creation. Responses carry `X-RateLimit-*` and
+`X-Quota-*` headers so clients can back off before hitting a limit.
+
+The first account to sign in becomes an administrator automatically. Anyone listed in `ADMIN_EMAILS` is
+promoted on sign-in. From `/admin/settings` an administrator can change the default monthly quota, the
+per-minute rate limit, the public widget allowance, batch limits, and whether new signups are accepted —
+all without a redeploy.
+
+---
+
+## 🚢 Deploying to Plesk
+
+1. **Create the database.** In Plesk, add a MySQL database and user, then set `DATABASE_URL`.
+2. **Set the Node.js application.** Application root is the repository, application startup file is
+   `dist/index.js`, application mode is `production`.
+3. **Add environment variables** from `.env.example` through the Node.js extension UI. `SESSION_SECRET`,
+   `DATABASE_URL`, `APP_URL` and the Google credentials are all required — the app refuses to start without
+   the first three.
+4. **Register the OAuth redirect URI** in Google Cloud Console as
+   `https://payment.offsetsoftware.net/auth/google/callback`. It must match `APP_URL` exactly.
+5. **Run the build**: `npm run deploy`, then restart the application.
+
+Two Plesk-specific details matter:
+
+**Timeouts.** Legacy CBE receipts are fetched as PDFs and can take 30 seconds. Add these directives under
+Apache & nginx Settings → Additional nginx directives:
+
+```nginx
+proxy_read_timeout 120s;
+proxy_send_timeout 120s;
+client_max_body_size 12m;
+```
+
+**Passenger instances.** The rate limiter keeps its counters in process memory, so running several
+instances multiplies the effective limit. The monthly quota lives in the database and stays exact either
+way. Pin the application to a single instance if you want the rate limit to be precise.
 
 ---
 

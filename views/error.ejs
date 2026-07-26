@@ -1,0 +1,12 @@
+<%- include('partials/header', { title: title, active: '' }) %>
+
+<div class="container container-narrow section center">
+  <h1 class="h2"><%= heading %></h1>
+  <p class="lede" style="margin-top:14px"><%= message %></p>
+  <div class="row" style="justify-content:center;margin-top:26px">
+    <a class="btn btn-primary" href="/">Back to home</a>
+    <a class="btn btn-ghost" href="/docs">Read the docs</a>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

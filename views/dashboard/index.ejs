@@ -1,0 +1,142 @@
+<%- include('../partials/header', { title: title, active: active }) %>
+
+<div class="app-shell">
+  <%- include('../partials/appnav', { section: section }) %>
+
+  <main class="app-main">
+    <div class="page-head row row-between row-wrap">
+      <div>
+        <h1 class="page-title">Overview</h1>
+        <p class="muted small">Signed in as <%= user.email %></p>
+      </div>
+      <a class="btn btn-accent" href="/dashboard/playground">Try a verification</a>
+    </div>
+
+    <% if (keys.length === 0) { %>
+      <div class="card stack stack-4" style="margin-bottom:22px;border-color:#2c4a35">
+        <div>
+          <h2 class="h3">Create your first API key</h2>
+          <p class="muted small" style="margin-top:6px">
+            You need a key to call the API. It is free, takes one click, and you can revoke it at any time.
+          </p>
+        </div>
+        <div><a class="btn btn-accent" href="/dashboard/keys">Create an API key</a></div>
+      </div>
+    <% } %>
+
+    <div class="grid grid-4" style="margin-bottom:20px">
+      <div class="stat">
+        <div class="stat-label">This month</div>
+        <div class="stat-value"><%= quota.used.toLocaleString() %></div>
+        <div class="stat-sub">
+          <% if (quota.limit > 0) { %>
+            of <%= quota.limit.toLocaleString() %> included
+          <% } else { %>
+            unlimited
+          <% } %>
+        </div>
+        <% if (quota.limit > 0) { %>
+          <div class="meter <%= quota.percent > 90 ? 'danger' : (quota.percent > 70 ? 'warn' : '') %>">
+            <span style="width:<%= quota.percent %>%"></span>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">Succeeded</div>
+        <div class="stat-value"><%= summary.succeeded.toLocaleString() %></div>
+        <div class="stat-sub">last 30 days</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">Failed</div>
+        <div class="stat-value"><%= summary.failed.toLocaleString() %></div>
+        <div class="stat-sub">last 30 days</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">Average latency</div>
+        <div class="stat-value"><%= summary.avgResponseTime %><span class="muted" style="font-size:16px">ms</span></div>
+        <div class="stat-sub"><%= rateLimit %> req/min limit</div>
+      </div>
+    </div>
+
+    <div class="card card-flush" style="margin-bottom:20px">
+      <div class="card-head">
+        <span class="card-title">Requests, last 30 days</span>
+        <span class="xs faint">Resets <%= quota.resetsAt.toISOString().slice(0, 10) %></span>
+      </div>
+      <div class="card-body">
+        <% const peak = Math.max(1, ...daily.map(d => d.total)); %>
+        <div class="chart">
+          <% daily.forEach(function (point) { %>
+            <div class="bar <%= point.failed > 0 ? 'has-fail' : '' %>"
+                 data-v="<%= point.total %>"
+                 title="<%= point.date %> — <%= point.total %> requests, <%= point.failed %> failed"
+                 style="height:<%= Math.max(2, Math.round((point.total / peak) * 100)) %>%"></div>
+          <% }); %>
+        </div>
+        <div class="row row-between xs faint" style="margin-top:10px">
+          <span><%= daily[0] ? daily[0].date : '' %></span>
+          <span>peak <%= peak %>/day</span>
+          <span><%= daily.length ? daily[daily.length - 1].date : '' %></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card card-flush">
+        <div class="card-head">
+          <span class="card-title">Active keys</span>
+          <a class="btn btn-sm" href="/dashboard/keys">Manage</a>
+        </div>
+        <% if (keys.length === 0) { %>
+          <div class="empty">No active keys yet.</div>
+        <% } else { %>
+          <div class="table-wrap">
+            <table class="data">
+              <thead><tr><th>Name</th><th>Key</th><th>Calls</th></tr></thead>
+              <tbody>
+                <% keys.forEach(function (key) { %>
+                  <tr>
+                    <td><%= key.name %></td>
+                    <td class="mono xs muted"><%= key.prefix %>…</td>
+                    <td><%= key.usageCount.toLocaleString() %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="card card-flush">
+        <div class="card-head"><span class="card-title">Recent requests</span></div>
+        <% if (recent.length === 0) { %>
+          <div class="empty">Nothing yet. Your first call will show up here.</div>
+        <% } else { %>
+          <div class="table-wrap">
+            <table class="data">
+              <thead><tr><th>Endpoint</th><th>Status</th><th>Time</th></tr></thead>
+              <tbody>
+                <% recent.forEach(function (log) { %>
+                  <tr>
+                    <td class="mono xs"><%= log.endpoint %></td>
+                    <td>
+                      <span class="badge <%= log.statusCode < 400 ? 'badge-good' : 'badge-danger' %>">
+                        <%= log.statusCode %>
+                      </span>
+                    </td>
+                    <td class="xs muted"><%= log.createdAt.toISOString().slice(5, 16).replace('T', ' ') %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>

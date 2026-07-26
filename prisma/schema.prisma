@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model User {
+  id       String @id @default(cuid())
+  googleId String @unique
+  email    String @unique
+
+  name      String?
+  avatarUrl String? @db.Text
+
+  role   Role       @default(USER)
+  status UserStatus @default(ACTIVE)
+
+  // Null means "use the global default from Setting".
+  monthlyQuota       Int?
+  rateLimitPerMinute Int?
+
+  createdAt   DateTime  @default(now())
+  lastLoginAt DateTime?
+
+  apiKeys  ApiKey[]
+  webhooks Webhook[]
+  counters UsageCounter[]
+
+  @@index([createdAt])
+}
+
+model ApiKey {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name String
+
+  // Only the hash is stored; the raw key is shown once at creation.
+  keyHash String @unique
+  prefix  String
+
+  isActive   Boolean   @default(true)
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  usageLogs UsageLog[]
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+enum UsageSource {
+  API
+  PUBLIC
+  DASHBOARD
+}
+
+model UsageLog {
+  id Int @id @default(autoincrement())
+
+  // Null for public widget traffic, which belongs to no account.
+  apiKeyId String?
+  apiKey   ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  userId   String?
+
+  endpoint     String
+  method       String @db.VarChar(10)
+  statusCode   Int
+  responseTime Int
+  provider     String? @db.VarChar(32)
+  ip           String  @db.VarChar(64)
+
+  source    UsageSource @default(API)
+  createdAt DateTime    @default(now())
+
+  @@index([apiKeyId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([endpoint])
+}
+
+// Monthly quota tally. Kept separate from UsageLog so a quota check is a
+// single indexed row read instead of an aggregate over the log table.
+model UsageCounter {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  periodStart DateTime @db.Date
+  count       Int      @default(0)
+
+  @@unique([userId, periodStart])
+  @@index([periodStart])
+}
+
+model Webhook {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  url           String @db.Text
+  events        Json
+  signingSecret String
+  active        Boolean @default(true)
+
+  createdAt  DateTime          @default(now())
+  deliveries WebhookDelivery[]
+
+  @@index([userId])
+}
+
+enum WebhookDeliveryStatus {
+  QUEUED
+  PROCESSING
+  RETRYING
+  SUCCEEDED
+  DEAD_LETTER
+}
+
+model WebhookDelivery {
+  id        String  @id @default(cuid())
+  webhookId String
+  webhook   Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  event   String
+  payload Json
+
+  status      WebhookDeliveryStatus @default(QUEUED)
+  attempts    Int                   @default(0)
+  maxAttempts Int                   @default(4)
+
+  statusCode   Int?
+  lastError    String?   @db.Text
+  nextRetryAt  DateTime?
+  deliveredAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([webhookId])
+  @@index([status, nextRetryAt])
+}
+
+// Global configuration editable from /admin without a redeploy.
+model Setting {
+  key       String   @id @db.VarChar(64)
+  value     Json
+  updatedAt DateTime @updatedAt
+}

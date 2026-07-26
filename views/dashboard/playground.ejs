@@ -1,0 +1,115 @@
+<%- include('../partials/header', { title: title, active: active }) %>
+
+<div class="app-shell">
+  <%- include('../partials/appnav', { section: section }) %>
+
+  <main class="app-main">
+    <div class="page-head">
+      <h1 class="page-title">Playground</h1>
+      <p class="muted small">
+        Runs against the live providers using your account. Calls count towards your monthly quota.
+      </p>
+    </div>
+
+    <div class="grid grid-2" style="align-items:start">
+      <div class="card stack stack-4">
+        <div>
+          <span class="card-title">Request</span>
+          <p class="hint" style="margin-top:4px">
+            The smart router detects the provider from the reference, so most of the time only that field matters.
+          </p>
+        </div>
+
+        <label class="field">
+          <span class="label">Reference</span>
+          <input type="text" id="pg-reference" placeholder="FT25123ABCD or https://mbreciept.cbe.com.et/…" autocomplete="off">
+        </label>
+
+        <label class="field">
+          <span class="label">Account suffix <span class="faint">— last 8 digits, legacy CBE only</span></span>
+          <input type="text" id="pg-suffix" placeholder="12345678" maxlength="8" autocomplete="off">
+        </label>
+
+        <label class="field">
+          <span class="label">Phone number <span class="faint">— Telebirr and M-Pesa only</span></span>
+          <input type="text" id="pg-phone" placeholder="2519…" autocomplete="off">
+        </label>
+
+        <div class="row">
+          <button class="btn btn-accent" id="pg-run">Verify</button>
+          <span class="small muted" id="pg-status"></span>
+        </div>
+      </div>
+
+      <div class="card card-flush">
+        <div class="card-head">
+          <span class="card-title">Response</span>
+          <span id="pg-badge"></span>
+        </div>
+        <div class="card-body">
+          <pre id="pg-output" style="min-height:280px;margin:0">Run a verification to see the response.</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-note" style="margin-top:22px">
+      <strong>Note.</strong> Legacy CBE receipts are fetched as PDFs and can take 20 seconds or more.
+      Everything else usually returns in under three seconds.
+    </div>
+  </main>
+</div>
+
+<script>
+  (function () {
+    var runBtn = document.getElementById('pg-run');
+    var output = document.getElementById('pg-output');
+    var status = document.getElementById('pg-status');
+    var badge = document.getElementById('pg-badge');
+
+    function setBadge(ok, code) {
+      badge.className = 'badge ' + (ok ? 'badge-good' : 'badge-danger');
+      badge.textContent = code;
+    }
+
+    runBtn.addEventListener('click', async function () {
+      var reference = document.getElementById('pg-reference').value.trim();
+      if (!reference) {
+        status.textContent = 'Enter a reference first.';
+        return;
+      }
+
+      runBtn.disabled = true;
+      status.textContent = 'Verifying…';
+      badge.textContent = '';
+      badge.className = '';
+      output.textContent = '';
+
+      var started = Date.now();
+
+      try {
+        var response = await fetch('/dashboard/playground/verify', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            reference: reference,
+            suffix: document.getElementById('pg-suffix').value.trim() || undefined,
+            phoneNumber: document.getElementById('pg-phone').value.trim() || undefined
+          })
+        });
+
+        var body = await response.json();
+        output.textContent = JSON.stringify(body, null, 2);
+        setBadge(response.ok, response.status);
+        status.textContent = 'Completed in ' + ((Date.now() - started) / 1000).toFixed(1) + 's';
+      } catch (err) {
+        output.textContent = String(err);
+        setBadge(false, 'error');
+        status.textContent = '';
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  })();
+</script>
+
+<%- include('../partials/footer') %>

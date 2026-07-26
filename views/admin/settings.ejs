@@ -1,0 +1,81 @@
+<%- include('../partials/header', { title: title, active: active }) %>
+
+<div class="app-shell">
+  <%- include('../partials/appnav', { section: section }) %>
+
+  <main class="app-main">
+    <div class="page-head">
+      <h1 class="page-title">Global settings</h1>
+      <p class="muted small">Applies to every account that has no personal override. Takes effect within 30 seconds.</p>
+    </div>
+
+    <% if (notice) { %>
+      <div class="flash flash-good"><%= notice %></div>
+    <% } %>
+
+    <form method="post" action="/admin/settings" class="stack stack-4" style="max-width:660px">
+      <div class="card card-flush">
+        <div class="card-head"><span class="card-title">Limits</span></div>
+        <div class="card-body stack stack-4">
+          <label class="field">
+            <span class="label"><%= labels.defaultMonthlyQuota %></span>
+            <input type="number" name="defaultMonthlyQuota" min="0" value="<%= settings.defaultMonthlyQuota %>">
+            <span class="hint">Zero means unlimited. Default <%= defaults.defaultMonthlyQuota %>.</span>
+          </label>
+
+          <label class="field">
+            <span class="label"><%= labels.defaultRateLimitPerMinute %></span>
+            <input type="number" name="defaultRateLimitPerMinute" min="0" value="<%= settings.defaultRateLimitPerMinute %>">
+            <span class="hint">Burst protection, counted per process. Default <%= defaults.defaultRateLimitPerMinute %>.</span>
+          </label>
+
+          <label class="field">
+            <span class="label"><%= labels.publicWidgetPerHour %></span>
+            <input type="number" name="publicWidgetPerHour" min="0" value="<%= settings.publicWidgetPerHour %>">
+            <span class="hint">Applies to the landing page widget, which needs no account. Default <%= defaults.publicWidgetPerHour %>.</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card card-flush">
+        <div class="card-head"><span class="card-title">Batch verification</span></div>
+        <div class="card-body stack stack-4">
+          <label class="field">
+            <span class="label"><%= labels.batchMaxReferences %></span>
+            <input type="number" name="batchMaxReferences" min="0" value="<%= settings.batchMaxReferences %>">
+            <span class="hint">Default <%= defaults.batchMaxReferences %>.</span>
+          </label>
+
+          <label class="field">
+            <span class="label"><%= labels.batchConcurrency %></span>
+            <input type="number" name="batchConcurrency" min="1" value="<%= settings.batchConcurrency %>">
+            <span class="hint">
+              Raising this makes batches faster but ties up the process. Legacy CBE lookups launch a headless
+              browser, so keep it modest. Default <%= defaults.batchConcurrency %>.
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card card-flush">
+        <div class="card-head"><span class="card-title">Access</span></div>
+        <div class="card-body">
+          <label class="switch">
+            <input type="checkbox" name="signupsEnabled" <%= settings.signupsEnabled ? 'checked' : '' %>>
+            <span><%= labels.signupsEnabled %></span>
+          </label>
+          <p class="hint" style="margin-top:8px">
+            When off, existing users keep working but nobody new can sign in.
+          </p>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn btn-accent" type="submit">Save settings</button>
+        <a class="btn btn-ghost" href="/admin">Cancel</a>
+      </div>
+    </form>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title %></title>
+<meta name="description" content="<%= typeof description !== 'undefined' ? description : 'Free payment verification API for Ethiopian and Kenyan payment providers.' %>">
+<link rel="stylesheet" href="/assets/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234ade80'/><text x='16' y='23' font-size='19' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%23041509'>V</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container">
+    <a class="brand" href="/">
+      <span class="brand-mark">V</span>
+      <span>Veripay</span>
+      <span class="tag">Free</span>
+    </a>
+
+    <nav class="nav-links">
+      <a href="/#verify" class="<%= active === 'verify' ? 'active' : '' %>">Verify</a>
+      <a href="/docs" class="<%= active === 'docs' ? 'active' : '' %>">Documentation</a>
+      <a href="/changelog" class="<%= active === 'changelog' ? 'active' : '' %>">Changelog</a>
+    </nav>
+
+    <span class="spacer"></span>
+
+    <div class="row" style="gap:10px">
+      <% if (user) { %>
+        <% if (user.role === 'ADMIN') { %>
+          <a class="btn btn-ghost btn-sm" href="/admin">Admin</a>
+        <% } %>
+        <a class="btn btn-primary btn-sm" href="/dashboard">Dashboard</a>
+      <% } else { %>
+        <a class="btn btn-ghost btn-sm" href="/login">Sign in</a>
+        <a class="btn btn-primary btn-sm" href="/login">Get an API key</a>
+      <% } %>
+    </div>
+  </div>
+</header>

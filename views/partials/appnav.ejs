@@ -1,0 +1,25 @@
+<nav class="side-nav">
+  <div class="group-label">Workspace</div>
+  <a href="/dashboard" class="<%= section === 'overview' ? 'active' : '' %>">Overview</a>
+  <a href="/dashboard/keys" class="<%= section === 'keys' ? 'active' : '' %>">API keys</a>
+  <a href="/dashboard/playground" class="<%= section === 'playground' ? 'active' : '' %>">Playground</a>
+  <a href="/dashboard/settings" class="<%= section === 'settings' ? 'active' : '' %>">Account</a>
+
+  <div class="group-label">Reference</div>
+  <a href="/docs">Documentation</a>
+  <a href="/changelog">Changelog</a>
+
+  <% if (user && user.role === 'ADMIN') { %>
+    <div class="group-label">Administration</div>
+    <a href="/admin" class="<%= section === 'admin-overview' ? 'active' : '' %>">Overview</a>
+    <a href="/admin/users" class="<%= section === 'admin-users' ? 'active' : '' %>">Users</a>
+    <a href="/admin/keys" class="<%= section === 'admin-keys' ? 'active' : '' %>">Keys</a>
+    <a href="/admin/usage" class="<%= section === 'admin-usage' ? 'active' : '' %>">Usage</a>
+    <a href="/admin/settings" class="<%= section === 'admin-settings' ? 'active' : '' %>">Settings</a>
+  <% } %>
+
+  <div class="group-label">Session</div>
+  <form method="post" action="/auth/logout">
+    <button type="submit" class="btn btn-ghost btn-sm btn-block" style="justify-content:flex-start">Sign out</button>
+  </form>
+</nav>

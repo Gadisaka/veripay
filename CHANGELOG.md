@@ -4,6 +4,59 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [4.0.0] - 2026-07-26
+
+### 🚀 Added
+
+- **Accounts**: Google sign-in, backed by a MySQL database through Prisma. The first account to sign in becomes an administrator; further administrators can be named through `ADMIN_EMAILS`.
+- **Dashboard** at `/dashboard`: issue and revoke API keys, see usage and latency over the last 30 days, and run live verifications from a playground without pasting a key into the browser.
+- **Admin console** at `/admin`: accounts, keys, a filterable usage explorer, and global limits editable without a redeploy.
+- **Landing page** at `/` with a public verification widget that needs no account, throttled per IP address.
+- **Changelog page** at `/changelog`, rendered from this file.
+- **Quotas and rate limiting**: a monthly quota per account held in the database, plus a per-minute burst limit. Both are reported through `X-Quota-*` and `X-RateLimit-*` response headers and can be overridden per user.
+
+### ♻️ Changed
+
+- **Authentication**: `x-veripay-key` now resolves against keys issued from the dashboard rather than the `VERIPAY_API_KEYS` environment variable. Keys are stored as SHA-256 hashes and displayed once. Environment keys still work as unmetered system keys for internal calls.
+- **Admin routes**: the shared-secret JSON endpoints were replaced by a session-authenticated interface gated on the user's role. `ADMIN_SECRET` is no longer used.
+- **CORS**: now scoped to the verification endpoints. The browser pages authenticate with a cookie and are no longer reachable cross-origin.
+- **Documentation** moved from `/` to `/docs` and was restyled to match the rest of the site.
+
+### ⚠️ Breaking
+
+- A MySQL database is now required. The application refuses to start without `DATABASE_URL`, `SESSION_SECRET` and `APP_URL`.
+- Callers must present a key issued from the dashboard. Previously the API could run fully open.
+
+---
+
+## [3.0.3] - 2026-07-26
+
+### 🚀 Added
+
+- **CBE**: Added support for the new token-based / full receipt URL verification flow (`https://mbreciept.cbe.com.et/{token}`) alongside the legacy FT + account suffix PDF flow. New receipts are resolved through the CBE JSON API at `mb.cbe.com.et`.
+- **CBE**: Added `src/utils/cbeReference.ts` to detect legacy references, legacy receipt links, and new receipt tokens/URLs.
+
+### ♻️ Changed
+
+- **CBE Routing**: `/verify-cbe` now accepts a token or full receipt URL, making `accountSuffix` optional for the new format while still requiring it for legacy FT references.
+- **Universal Verification**: Extracted the smart-router logic into `src/services/verifyUniversal.ts` and taught `POST /verify` to recognise new CBE tokens/URLs and legacy CBE receipt links.
+
+---
+
+## [3.0.2] - 2026-07-26
+
+### 🚀 Added
+
+- **Telebirr**: Added `customerNote` extraction in both the Node.js service and the PHP proxy script.
+
+### 🐛 Fixed & improved
+
+- **Telebirr Parsing**: Fixed regex issues that caused parsing failures for amounts over 1000 Birr (containing commas) and transactions with single-decimal `0.0 Birr` service fees.
+- **PHP Proxy (`verify.php`)**: Improved regex and XPath matching to handle complex HTML structures and varying number formats, aligning it with the Node.js parser.
+- **Telebirr Proxy**: The proxy request now forwards `TELEBIRR_PROXY_KEY` when configured, matching the key requirement in `verify.php`.
+
+---
+
 ## [3.0.1] - 2026-02-25
 
 ### 🚀 Improved

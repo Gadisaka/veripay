@@ -1,0 +1,68 @@
+<%- include('../partials/header', { title: title, active: active }) %>
+
+<div class="app-shell">
+  <%- include('../partials/appnav', { section: section }) %>
+
+  <main class="app-main">
+    <div class="page-head">
+      <h1 class="page-title">API keys</h1>
+      <p class="muted small"><%= total.toLocaleString() %> key<%= total === 1 ? '' : 's' %> issued across all accounts.</p>
+    </div>
+
+    <div class="card card-flush">
+      <% if (keys.length === 0) { %>
+        <div class="empty">No keys have been issued yet.</div>
+      <% } else { %>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>Owner</th><th>Name</th><th>Key</th><th>Status</th><th>Calls</th><th>Last used</th><th></th></tr>
+            </thead>
+            <tbody>
+              <% keys.forEach(function (key) { %>
+                <tr>
+                  <td class="truncate" style="max-width:220px">
+                    <%= key.user.email %>
+                    <% if (key.user.status === 'SUSPENDED') { %>
+                      <span class="badge badge-danger">suspended</span>
+                    <% } %>
+                  </td>
+                  <td><%= key.name %></td>
+                  <td class="mono xs muted"><%= key.prefix %>…</td>
+                  <td>
+                    <% if (key.isActive) { %>
+                      <span class="badge badge-good"><span class="dot"></span>Active</span>
+                    <% } else { %>
+                      <span class="badge">Revoked</span>
+                    <% } %>
+                  </td>
+                  <td class="mono"><%= key.usageCount.toLocaleString() %></td>
+                  <td class="xs muted"><%= key.lastUsedAt ? key.lastUsedAt.toISOString().slice(0, 10) : '—' %></td>
+                  <td style="text-align:right">
+                    <% if (key.isActive) { %>
+                      <form method="post" action="/admin/keys/<%= key.id %>/revoke"
+                            onsubmit="return confirm('Revoke this key? The owner\'s integration stops working immediately.')">
+                        <button class="btn btn-danger btn-sm" type="submit">Revoke</button>
+                      </form>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+    <% const pages = Math.ceil(total / pageSize); %>
+    <% if (pages > 1) { %>
+      <div class="row" style="gap:8px;margin-top:20px;justify-content:center">
+        <% if (page > 1) { %><a class="btn btn-sm" href="/admin/keys?page=<%= page - 1 %>">Previous</a><% } %>
+        <span class="small muted">Page <%= page %> of <%= pages %></span>
+        <% if (page < pages) { %><a class="btn btn-sm" href="/admin/keys?page=<%= page + 1 %>">Next</a><% } %>
+      </div>
+    <% } %>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>

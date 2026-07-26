@@ -1,0 +1,39 @@
+<%- include('partials/header', { title: 'Changelog — Veripay', active: 'changelog' }) %>
+
+<div class="container container-narrow section">
+  <div class="stack stack-3" style="margin-bottom:34px">
+    <span class="eyebrow">Changelog</span>
+    <h1 class="h2">What has shipped.</h1>
+    <p class="lede">Provider fixes, new endpoints and behaviour changes, newest first.</p>
+  </div>
+
+  <article class="card markdown">
+    <%- content %>
+  </article>
+</div>
+
+<style>
+  .markdown h2 {
+    font-size: 20px;
+    margin: 30px 0 6px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+  }
+  .markdown h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .markdown h3 { font-size: 14px; color: var(--accent); margin: 18px 0 6px; text-transform: uppercase; letter-spacing: .06em; }
+  .markdown h1 { display: none; }
+  .markdown ul { margin: 6px 0 14px; padding-left: 20px; color: var(--muted); }
+  .markdown li { margin: 4px 0; }
+  .markdown p { color: var(--muted); margin: 8px 0; }
+  .markdown a { color: var(--accent); }
+  .markdown code {
+    font-family: var(--mono);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 1px 5px;
+    font-size: .87em;
+  }
+</style>
+
+<%- include('partials/footer') %>

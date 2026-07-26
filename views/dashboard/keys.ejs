@@ -1,0 +1,110 @@
+<%- include('../partials/header', { title: title, active: active }) %>
+
+<div class="app-shell">
+  <%- include('../partials/appnav', { section: section }) %>
+
+  <main class="app-main">
+    <div class="page-head">
+      <h1 class="page-title">API keys</h1>
+      <p class="muted small">Send your key in the <code class="inline">x-veripay-key</code> header on every request.</p>
+    </div>
+
+    <% if (error) { %>
+      <div class="flash flash-error"><%= error %></div>
+    <% } %>
+
+    <% if (newKey) { %>
+      <div class="card stack stack-3" style="border-color:#2c4a35;margin-bottom:22px">
+        <div class="row row-between">
+          <span class="card-title">Your new key</span>
+          <span class="badge badge-good"><span class="dot"></span>Copy it now</span>
+        </div>
+        <div class="key-reveal">
+          <span id="raw-key" style="flex:1"><%= newKey %></span>
+          <button class="copy-btn" type="button" data-copy="#raw-key">Copy</button>
+        </div>
+        <p class="small muted">
+          This is the only time the key is shown. Only a hash is stored, so it cannot be recovered later —
+          if you lose it, revoke the key and create another.
+        </p>
+      </div>
+    <% } %>
+
+    <div class="card card-flush" style="margin-bottom:22px">
+      <div class="card-head"><span class="card-title">Create a key</span></div>
+      <div class="card-body">
+        <form method="post" action="/dashboard/keys" class="row row-wrap" style="gap:10px;align-items:flex-end">
+          <label class="field" style="flex:1;min-width:220px">
+            <span class="label">Name</span>
+            <input type="text" name="name" placeholder="Production server" maxlength="60" required>
+          </label>
+          <button class="btn btn-accent" type="submit">Create key</button>
+        </form>
+        <p class="hint" style="margin-top:10px">Up to <%= maxKeys %> active keys per account.</p>
+      </div>
+    </div>
+
+    <div class="card card-flush">
+      <div class="card-head"><span class="card-title">Your keys</span></div>
+      <% if (keys.length === 0) { %>
+        <div class="empty">No keys yet. Create one above to start calling the API.</div>
+      <% } else { %>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Name</th><th>Key</th><th>Status</th><th>Calls</th><th>Last used</th><th>Created</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% keys.forEach(function (key) { %>
+                <tr>
+                  <td><%= key.name %></td>
+                  <td class="mono xs muted"><%= key.prefix %>…</td>
+                  <td>
+                    <% if (key.isActive) { %>
+                      <span class="badge badge-good"><span class="dot"></span>Active</span>
+                    <% } else { %>
+                      <span class="badge">Revoked</span>
+                    <% } %>
+                  </td>
+                  <td><%= key.usageCount.toLocaleString() %></td>
+                  <td class="xs muted"><%= key.lastUsedAt ? key.lastUsedAt.toISOString().slice(0, 10) : '—' %></td>
+                  <td class="xs muted"><%= key.createdAt.toISOString().slice(0, 10) %></td>
+                  <td style="text-align:right">
+                    <% if (key.isActive) { %>
+                      <form method="post" action="/dashboard/keys/<%= key.id %>/revoke"
+                            onsubmit="return confirm('Revoke this key? Any application using it will stop working immediately.')">
+                        <button class="btn btn-danger btn-sm" type="submit">Revoke</button>
+                      </form>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="panel-note" style="margin-top:22px">
+      <strong>Keep keys server-side.</strong> Anything in browser JavaScript is readable by your visitors.
+      Call the API from your backend and pass the result to the page.
+    </div>
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = document.querySelector(btn.getAttribute('data-copy'));
+      navigator.clipboard.writeText(target.textContent.trim()).then(function () {
+        var original = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = original; }, 1600);
+      });
+    });
+  });
+</script>
+
+<%- include('../partials/footer') %>

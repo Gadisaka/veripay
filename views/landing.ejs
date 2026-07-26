@@ -1,0 +1,336 @@
+<%- include('partials/header', { title: 'Veripay — Ethiopian payment verification API', active: 'verify' }) %>
+
+<!-- ── hero ──────────────────────────────────────────────────────────────── -->
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div class="stack stack-6">
+        <span class="badge badge-good" style="align-self:flex-start"><span class="dot"></span>Free forever — no plans, no card</span>
+
+        <h1 class="display">
+          Verify<br>payments.
+        </h1>
+
+        <p class="lede measure">
+          Confirm bank transfers and mobile money receipts from Ethiopian and Kenyan providers with a single
+          API call. Send a reference, get structured payment details back.
+        </p>
+
+        <div class="row row-wrap">
+          <a class="btn btn-accent btn-lg" href="/login">Get your API key</a>
+          <a class="btn btn-lg" href="#verify">Verify a payment</a>
+          <a class="btn btn-ghost btn-lg" href="/docs">Documentation</a>
+        </div>
+
+        <div class="stack stack-3" style="margin-top:8px">
+          <span class="eyebrow">Supported providers</span>
+          <div class="marquee">
+            <div class="marquee-track">
+              <% const providers = ['CBE', 'Telebirr', 'Bank of Abyssinia', 'Dashen', 'CBE Birr', 'M-Pesa']; %>
+              <% for (let pass = 0; pass < 2; pass++) { %>
+                <% providers.forEach(function (name) { %>
+                  <span class="chip"><span class="dot"></span><%= name %></span>
+                <% }); %>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- verification widget -->
+      <div class="card card-flush" id="verify" style="box-shadow:var(--shadow)">
+        <div class="card-head">
+          <span class="card-title">Try it now</span>
+          <span class="badge"><%= publicChecksPerHour %> free checks per hour</span>
+        </div>
+
+        <div class="card-body stack stack-4">
+          <label class="field">
+            <span class="label">Payment reference or receipt link</span>
+            <input type="text" id="v-reference" autocomplete="off"
+                   placeholder="FT25123ABCD, a Telebirr receipt number, or a CBE link">
+          </label>
+
+          <div class="grid grid-2" style="gap:12px">
+            <label class="field">
+              <span class="label">Account suffix <span class="faint">optional</span></span>
+              <input type="text" id="v-suffix" maxlength="8" placeholder="Last 8 digits" autocomplete="off">
+            </label>
+            <label class="field">
+              <span class="label">Phone number <span class="faint">optional</span></span>
+              <input type="text" id="v-phone" placeholder="2519…" autocomplete="off">
+            </label>
+          </div>
+
+          <button class="btn btn-accent btn-block btn-lg" id="v-run">Verify payment</button>
+
+          <div id="v-result" hidden></div>
+
+          <p class="hint center">
+            No sign-in needed for a quick check.
+            <a href="/login" style="color:var(--accent)">Create a free key</a> for unlimited use in your app.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── integration ───────────────────────────────────────────────────────── -->
+
+<section class="section-tight">
+  <div class="container">
+    <div class="hero-grid" style="align-items:center">
+      <div class="stack stack-4">
+        <span class="eyebrow">Frontend or backend</span>
+        <h2 class="h2">Verify from your app in one call.</h2>
+        <p class="lede measure">
+          One endpoint accepts every supported provider. The smart router reads the reference format and
+          picks the right adapter, so you do not have to ask the buyer which bank they used.
+        </p>
+        <div class="row row-wrap">
+          <a class="btn" href="/docs#smart-router">How routing works</a>
+          <a class="btn btn-ghost" href="/docs#endpoints">All endpoints</a>
+        </div>
+      </div>
+
+      <div class="window">
+        <div class="window-bar">
+          <span class="window-dots"><i></i><i></i><i></i></span>
+          <span>verify-payment.ts</span>
+        </div>
+<pre><code><span class="tok-key">const</span> endpoint = <span class="tok-str">'<%= appUrl %>/verify'</span>;
+
+<span class="tok-key">const</span> response = <span class="tok-key">await</span> <span class="tok-fn">fetch</span>(endpoint, {
+  method: <span class="tok-str">'POST'</span>,
+  headers: {
+    <span class="tok-str">'content-type'</span>: <span class="tok-str">'application/json'</span>,
+    <span class="tok-str">'x-veripay-key'</span>: process.env.<span class="tok-key">VERIPAY_KEY</span>,
+  },
+  body: <span class="tok-fn">JSON</span>.stringify({
+    reference: input.reference,
+    suffix: input.suffix,
+  }),
+});
+
+<span class="tok-key">const</span> result = <span class="tok-key">await</span> response.<span class="tok-fn">json</span>();
+<span class="tok-key">if</span> (!result.success) <span class="tok-key">throw new</span> <span class="tok-fn">Error</span>(result.error);
+
+<span class="tok-com">// { payer, receiver, amount, date, reference }</span>
+<span class="tok-key">return</span> result.data;</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── services ──────────────────────────────────────────────────────────── -->
+
+<section class="section">
+  <div class="container">
+    <div class="stack stack-3" style="margin-bottom:44px">
+      <span class="eyebrow">What you get</span>
+      <h2 class="h2 measure">Everything needed to confirm a payment, and nothing you have to pay for.</h2>
+      <p class="lede measure">
+        Veripay reads the receipt the provider publishes and turns it into structured data your application
+        can act on.
+      </p>
+    </div>
+
+    <div class="grid grid-3">
+      <div class="card stack stack-3">
+        <span class="feature-num">01</span>
+        <h3 class="h3">Verify any reference</h3>
+        <p class="muted small">
+          Legacy CBE receipts, the new token-based CBE links, Telebirr receipt numbers, Dashen, Abyssinia,
+          CBE Birr and M-Pesa — all through one endpoint.
+        </p>
+      </div>
+
+      <div class="card stack stack-3">
+        <span class="feature-num">02</span>
+        <h3 class="h3">Read receipt images</h3>
+        <p class="muted small">
+          When a buyer sends a screenshot instead of a reference, post the image and get the payment details
+          extracted from it.
+        </p>
+      </div>
+
+      <div class="card stack stack-3">
+        <span class="feature-num">03</span>
+        <h3 class="h3">Consistent responses</h3>
+        <p class="muted small">
+          Every provider returns the same shape — payer, receiver, amount, date and reference — so your
+          checkout code stays the same as you add banks.
+        </p>
+      </div>
+
+      <div class="card stack stack-3">
+        <span class="feature-num">04</span>
+        <h3 class="h3">Usage you can see</h3>
+        <p class="muted small">
+          The dashboard shows every request, its status and how long it took, so a failing integration is
+          obvious rather than mysterious.
+        </p>
+      </div>
+
+      <div class="card stack stack-3">
+        <span class="feature-num">05</span>
+        <h3 class="h3">Keys you control</h3>
+        <p class="muted small">
+          Issue a key per environment and revoke any of them instantly. Keys are stored hashed and shown
+          only once.
+        </p>
+      </div>
+
+      <div class="card stack stack-3">
+        <span class="feature-num">06</span>
+        <h3 class="h3">Free, genuinely</h3>
+        <p class="muted small">
+          No tiers, no image credits, no card. Sign in with Google, create a key, and start verifying
+          straight away.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── providers ─────────────────────────────────────────────────────────── -->
+
+<section class="section-tight">
+  <div class="container">
+    <div class="card stack stack-6" style="padding:38px">
+      <div class="stack stack-3">
+        <span class="eyebrow">Provider coverage</span>
+        <h2 class="h2 measure">One verification surface for the rails your buyers already use.</h2>
+      </div>
+
+      <div class="chips">
+        <span class="chip"><span class="dot"></span>CBE</span>
+        <span class="chip"><span class="dot"></span>Telebirr</span>
+        <span class="chip"><span class="dot"></span>Bank of Abyssinia</span>
+        <span class="chip"><span class="dot"></span>Dashen</span>
+        <span class="chip"><span class="dot"></span>CBE Birr</span>
+        <span class="chip"><span class="dot"></span>M-Pesa</span>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="stack stack-2">
+          <span class="badge badge-good"><span class="dot"></span>Public checks</span>
+          <p class="small muted">Verify a single reference from this page without an account.</p>
+        </div>
+        <div class="stack stack-2">
+          <span class="badge badge-good"><span class="dot"></span>Dual CBE flow</span>
+          <p class="small muted">Both the old PDF receipts and the new token links are handled automatically.</p>
+        </div>
+        <div class="stack stack-2">
+          <span class="badge badge-good"><span class="dot"></span>Proxy fallback</span>
+          <p class="small muted">Regional restrictions are worked around transparently where needed.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── cta ───────────────────────────────────────────────────────────────── -->
+
+<section class="section">
+  <div class="container center stack stack-6">
+    <div class="stack stack-3">
+      <span class="eyebrow">Ready when you are</span>
+      <h2 class="h2 measure-center">Verify a payment now, or get the key that handles the next hundred.</h2>
+      <p class="lede measure-center">
+        Use the widget above for a one-off check, then sign in when you are ready to wire it into your
+        application.
+      </p>
+    </div>
+    <div class="row" style="justify-content:center">
+      <a class="btn btn-accent btn-lg" href="/login">Continue with Google</a>
+      <a class="btn btn-lg" href="/docs">Read the docs</a>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var runBtn = document.getElementById('v-run');
+    var box = document.getElementById('v-result');
+
+    function show(html) {
+      box.hidden = false;
+      box.innerHTML = html;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function renderSuccess(payload) {
+      var data = payload.data || {};
+      var rows = [
+        ['Payer', data.payer],
+        ['Receiver', data.receiver],
+        ['Amount', data.amount],
+        ['Date', data.date],
+        ['Reference', data.reference]
+      ].filter(function (row) { return row[1]; });
+
+      if (rows.length === 0) {
+        show('<pre>' + escapeHtml(JSON.stringify(payload.data, null, 2)) + '</pre>');
+        return;
+      }
+
+      var body = rows.map(function (row) {
+        return '<tr><td class="muted">' + row[0] + '</td><td class="mono">' + escapeHtml(row[1]) + '</td></tr>';
+      }).join('');
+
+      show(
+        '<div class="panel-note good" style="margin-bottom:12px">Payment confirmed' +
+        (payload.provider ? ' via <strong>' + escapeHtml(payload.provider) + '</strong>' : '') + '.</div>' +
+        '<div class="table-wrap"><table class="data"><tbody>' + body + '</tbody></table></div>'
+      );
+    }
+
+    runBtn.addEventListener('click', async function () {
+      var reference = document.getElementById('v-reference').value.trim();
+
+      if (!reference) {
+        show('<div class="panel-note warn">Enter a payment reference first.</div>');
+        return;
+      }
+
+      runBtn.disabled = true;
+      runBtn.textContent = 'Verifying…';
+      show('<div class="panel-note">Contacting the provider. Legacy CBE receipts can take up to 30 seconds.</div>');
+
+      try {
+        var response = await fetch('/public/verify', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            reference: reference,
+            suffix: document.getElementById('v-suffix').value.trim() || undefined,
+            phoneNumber: document.getElementById('v-phone').value.trim() || undefined
+          })
+        });
+
+        var payload = await response.json();
+
+        if (payload.success) {
+          renderSuccess(payload);
+        } else {
+          show('<div class="panel-note danger">' + escapeHtml(payload.error || 'Verification failed.') + '</div>');
+        }
+      } catch (err) {
+        show('<div class="panel-note danger">Could not reach the server. Please try again.</div>');
+      } finally {
+        runBtn.disabled = false;
+        runBtn.textContent = 'Verify payment';
+      }
+    });
+  })();
+</script>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,89 @@
+<%- include('../partials/header', { title: title, active: active }) %>
+
+<div class="app-shell">
+  <%- include('../partials/appnav', { section: section }) %>
+
+  <main class="app-main">
+    <div class="page-head row row-between row-wrap">
+      <div>
+        <h1 class="page-title">Administration</h1>
+        <p class="muted small">Service-wide activity across every account.</p>
+      </div>
+      <span class="badge badge-info">Admin</span>
+    </div>
+
+    <div class="grid grid-4" style="margin-bottom:20px">
+      <div class="stat">
+        <div class="stat-label">Accounts</div>
+        <div class="stat-value"><%= stats.users.toLocaleString() %></div>
+        <div class="stat-sub"><%= stats.suspended %> suspended</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Active keys</div>
+        <div class="stat-value"><%= stats.activeKeys.toLocaleString() %></div>
+        <div class="stat-sub">across all accounts</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Requests, 24h</div>
+        <div class="stat-value"><%= stats.requestsToday.toLocaleString() %></div>
+        <div class="stat-sub"><%= summary.total.toLocaleString() %> in 30 days</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Failure rate</div>
+        <div class="stat-value"><%= summary.total ? Math.round((summary.failed / summary.total) * 100) : 0 %><span class="muted" style="font-size:16px">%</span></div>
+        <div class="stat-sub"><%= summary.avgResponseTime %>ms average</div>
+      </div>
+    </div>
+
+    <div class="card card-flush" style="margin-bottom:20px">
+      <div class="card-head">
+        <span class="card-title">All requests, last 30 days</span>
+        <a class="btn btn-sm" href="/admin/usage">Open explorer</a>
+      </div>
+      <div class="card-body">
+        <% const peak = Math.max(1, ...daily.map(d => d.total)); %>
+        <div class="chart">
+          <% daily.forEach(function (point) { %>
+            <div class="bar <%= point.failed > 0 ? 'has-fail' : '' %>"
+                 title="<%= point.date %> — <%= point.total %> requests, <%= point.failed %> failed"
+                 style="height:<%= Math.max(2, Math.round((point.total / peak) * 100)) %>%"></div>
+          <% }); %>
+        </div>
+        <div class="row row-between xs faint" style="margin-top:10px">
+          <span><%= daily[0] ? daily[0].date : '' %></span>
+          <span>peak <%= peak %>/day</span>
+          <span><%= daily.length ? daily[daily.length - 1].date : '' %></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-flush">
+      <div class="card-head">
+        <span class="card-title">Heaviest accounts this month</span>
+        <a class="btn btn-sm" href="/admin/users">Manage users</a>
+      </div>
+      <% if (topUsers.length === 0) { %>
+        <div class="empty">No usage recorded this month.</div>
+      <% } else { %>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>Account</th><th>Verifications</th></tr></thead>
+            <tbody>
+              <% topUsers.forEach(function (row) { %>
+                <tr>
+                  <td>
+                    <%= row.user.email %>
+                    <% if (row.user.name) { %><span class="muted xs"> — <%= row.user.name %></span><% } %>
+                  </td>
+                  <td class="mono"><%= row.count.toLocaleString() %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>

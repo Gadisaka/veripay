@@ -1,0 +1,123 @@
+<%- include('../partials/header', { title: title, active: active }) %>
+
+<div class="app-shell">
+  <%- include('../partials/appnav', { section: section }) %>
+
+  <main class="app-main">
+    <div class="page-head row row-between row-wrap">
+      <div>
+        <h1 class="page-title">Users</h1>
+        <p class="muted small"><%= total.toLocaleString() %> account<%= total === 1 ? '' : 's' %></p>
+      </div>
+      <form method="get" action="/admin/users" class="row" style="gap:8px">
+        <input type="search" name="q" value="<%= search %>" placeholder="Search email or name" style="width:230px">
+        <button class="btn" type="submit">Search</button>
+      </form>
+    </div>
+
+    <% if (notice) { %>
+      <div class="flash flash-good"><%= notice %></div>
+    <% } %>
+
+    <% if (users.length === 0) { %>
+      <div class="card"><div class="empty">No accounts match.</div></div>
+    <% } else { %>
+      <div class="stack stack-3">
+        <% users.forEach(function (u) { %>
+          <div class="card card-flush">
+            <div class="card-head">
+              <div class="row" style="gap:12px;min-width:0">
+                <% if (u.avatarUrl) { %>
+                  <img src="<%= u.avatarUrl %>" alt="" width="32" height="32" style="border-radius:50%">
+                <% } %>
+                <div style="min-width:0">
+                  <div class="truncate" style="font-weight:600"><%= u.email %></div>
+                  <div class="xs muted">
+                    <%= u.name || 'Unnamed' %> · joined <%= u.createdAt.toISOString().slice(0, 10) %>
+                    · <%= u._count.apiKeys %> key<%= u._count.apiKeys === 1 ? '' : 's' %>
+                    · <%= (u.counters[0] ? u.counters[0].count : 0).toLocaleString() %> calls this month
+                  </div>
+                </div>
+              </div>
+
+              <div class="row" style="gap:6px">
+                <span class="badge <%= u.role === 'ADMIN' ? 'badge-info' : '' %>"><%= u.role %></span>
+                <span class="badge <%= u.status === 'ACTIVE' ? 'badge-good' : 'badge-danger' %>">
+                  <span class="dot"></span><%= u.status %>
+                </span>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="row row-wrap" style="gap:8px;margin-bottom:14px">
+                <% if (u.status === 'ACTIVE') { %>
+                  <form method="post" action="/admin/users/<%= u.id %>"
+                        onsubmit="return confirm('Suspend <%= u.email %>? Their keys stop working immediately.')">
+                    <input type="hidden" name="action" value="suspend">
+                    <button class="btn btn-danger btn-sm" type="submit"
+                            <%= u.id === user.id ? 'disabled title="You cannot suspend yourself"' : '' %>>Suspend</button>
+                  </form>
+                <% } else { %>
+                  <form method="post" action="/admin/users/<%= u.id %>">
+                    <input type="hidden" name="action" value="activate">
+                    <button class="btn btn-sm" type="submit">Reactivate</button>
+                  </form>
+                <% } %>
+
+                <% if (u.role === 'USER') { %>
+                  <form method="post" action="/admin/users/<%= u.id %>">
+                    <input type="hidden" name="action" value="promote">
+                    <button class="btn btn-sm" type="submit">Make admin</button>
+                  </form>
+                <% } else { %>
+                  <form method="post" action="/admin/users/<%= u.id %>">
+                    <input type="hidden" name="action" value="demote">
+                    <button class="btn btn-sm" type="submit"
+                            <%= u.id === user.id ? 'disabled title="You cannot demote yourself"' : '' %>>Remove admin</button>
+                  </form>
+                <% } %>
+
+                <form method="post" action="/admin/users/<%= u.id %>"
+                      onsubmit="return confirm('Revoke every active key for <%= u.email %>?')">
+                  <input type="hidden" name="action" value="revoke-keys">
+                  <button class="btn btn-sm" type="submit">Revoke all keys</button>
+                </form>
+              </div>
+
+              <form method="post" action="/admin/users/<%= u.id %>" class="row row-wrap" style="gap:10px;align-items:flex-end">
+                <input type="hidden" name="action" value="limits">
+                <label class="field" style="width:180px">
+                  <span class="label">Monthly quota</span>
+                  <input type="number" name="monthlyQuota" min="0" value="<%= u.monthlyQuota === null ? '' : u.monthlyQuota %>"
+                         placeholder="default (<%= defaults.defaultMonthlyQuota %>)">
+                </label>
+                <label class="field" style="width:180px">
+                  <span class="label">Requests per minute</span>
+                  <input type="number" name="rateLimitPerMinute" min="0" value="<%= u.rateLimitPerMinute === null ? '' : u.rateLimitPerMinute %>"
+                         placeholder="default (<%= defaults.defaultRateLimitPerMinute %>)">
+                </label>
+                <button class="btn btn-sm" type="submit">Save limits</button>
+                <span class="hint">Leave blank to use the global default. Zero means unlimited.</span>
+              </form>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+
+      <% const pages = Math.ceil(total / pageSize); %>
+      <% if (pages > 1) { %>
+        <div class="row" style="gap:8px;margin-top:20px;justify-content:center">
+          <% if (page > 1) { %>
+            <a class="btn btn-sm" href="/admin/users?page=<%= page - 1 %>&q=<%= encodeURIComponent(search) %>">Previous</a>
+          <% } %>
+          <span class="small muted">Page <%= page %> of <%= pages %></span>
+          <% if (page < pages) { %>
+            <a class="btn btn-sm" href="/admin/users?page=<%= page + 1 %>&q=<%= encodeURIComponent(search) %>">Next</a>
+          <% } %>
+        </div>
+      <% } %>
+    <% } %>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>

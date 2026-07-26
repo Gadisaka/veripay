@@ -1,0 +1,83 @@
+<%- include('../partials/header', { title: title, active: active }) %>
+
+<div class="app-shell">
+  <%- include('../partials/appnav', { section: section }) %>
+
+  <main class="app-main">
+    <div class="page-head">
+      <h1 class="page-title">Usage explorer</h1>
+      <p class="muted small"><%= total.toLocaleString() %> matching request<%= total === 1 ? '' : 's' %>.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <form method="get" action="/admin/usage" class="row row-wrap" style="gap:10px;align-items:flex-end">
+        <label class="field" style="width:220px">
+          <span class="label">Endpoint</span>
+          <select name="endpoint">
+            <option value="">All endpoints</option>
+            <% endpoints.forEach(function (row) { %>
+              <option value="<%= row.endpoint %>" <%= filters.endpoint === row.endpoint ? 'selected' : '' %>>
+                <%= row.endpoint %> (<%= row._count.endpoint %>)
+              </option>
+            <% }); %>
+          </select>
+        </label>
+
+        <label class="field" style="width:150px">
+          <span class="label">Outcome</span>
+          <select name="status">
+            <option value="">All</option>
+            <option value="success" <%= filters.status === 'success' ? 'selected' : '' %>>Succeeded</option>
+            <option value="error" <%= filters.status === 'error' ? 'selected' : '' %>>Failed</option>
+          </select>
+        </label>
+
+        <button class="btn" type="submit">Apply</button>
+        <a class="btn btn-ghost" href="/admin/usage">Reset</a>
+      </form>
+    </div>
+
+    <div class="card card-flush">
+      <% if (logs.length === 0) { %>
+        <div class="empty">No requests match these filters.</div>
+      <% } else { %>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>When</th><th>Endpoint</th><th>Account</th><th>Source</th><th>Status</th><th>Time</th><th>IP</th></tr>
+            </thead>
+            <tbody>
+              <% logs.forEach(function (log) { %>
+                <tr>
+                  <td class="xs muted nowrap"><%= log.createdAt.toISOString().slice(0, 19).replace('T', ' ') %></td>
+                  <td class="mono xs"><%= log.endpoint %></td>
+                  <td class="xs truncate" style="max-width:200px">
+                    <%= log.userId ? (emailById.get(log.userId) || log.userId) : '—' %>
+                  </td>
+                  <td><span class="badge"><%= log.source %></span></td>
+                  <td>
+                    <span class="badge <%= log.statusCode < 400 ? 'badge-good' : 'badge-danger' %>"><%= log.statusCode %></span>
+                  </td>
+                  <td class="mono xs"><%= log.responseTime %>ms</td>
+                  <td class="mono xs muted"><%= log.ip %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+    <% const pages = Math.ceil(total / pageSize); %>
+    <% if (pages > 1) { %>
+      <% const qs = 'status=' + encodeURIComponent(filters.status) + '&endpoint=' + encodeURIComponent(filters.endpoint); %>
+      <div class="row" style="gap:8px;margin-top:20px;justify-content:center">
+        <% if (page > 1) { %><a class="btn btn-sm" href="/admin/usage?page=<%= page - 1 %>&<%= qs %>">Previous</a><% } %>
+        <span class="small muted">Page <%= page %> of <%= pages %></span>
+        <% if (page < pages) { %><a class="btn btn-sm" href="/admin/usage?page=<%= page + 1 %>&<%= qs %>">Next</a><% } %>
+      </div>
+    <% } %>
+  </main>
+</div>
+
+<%- include('../partials/footer') %>
