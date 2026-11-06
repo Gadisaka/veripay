@@ -128,7 +128,7 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
 async function start(): Promise<void> {
     await connectDatabase();
 
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
         logger.info(`Server running on port ${PORT}`);
     });
 
