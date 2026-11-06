@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import https from 'https';
 
 /**
  * Minimal Google OAuth 2.0 authorization-code flow.
@@ -53,26 +54,61 @@ function decodeIdToken(idToken: string): Record<string, unknown> {
     return JSON.parse(Buffer.from(segment, 'base64url').toString('utf8'));
 }
 
+/**
+ * Node's fetch speaks HTTP/2 to oauth2.googleapis.com. From this host that
+ * handshake stalls until it times out, while a plain HTTP/1.1 POST returns
+ * immediately. Keep the token exchange on https.request.
+ */
+function postForm(url: string, body: URLSearchParams): Promise<{ status: number; text: string }> {
+    const payload = body.toString();
+
+    return new Promise((resolve, reject) => {
+        const req = https.request(
+            url,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(payload)
+                },
+                timeout: 15_000
+            },
+            (res) => {
+                const chunks: Buffer[] = [];
+                res.on('data', (chunk: Buffer) => chunks.push(chunk));
+                res.on('end', () => {
+                    resolve({
+                        status: res.statusCode ?? 0,
+                        text: Buffer.concat(chunks).toString('utf8')
+                    });
+                });
+            }
+        );
+
+        req.on('timeout', () => req.destroy(new Error('Google token request timed out')));
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
+    });
+}
+
 export async function exchangeCode(code: string): Promise<GoogleProfile> {
-    const response = await fetch(TOKEN_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
+    const response = await postForm(
+        TOKEN_ENDPOINT,
+        new URLSearchParams({
             code,
             client_id: process.env.GOOGLE_CLIENT_ID!,
             client_secret: process.env.GOOGLE_CLIENT_SECRET!,
             redirect_uri: redirectUri(),
             grant_type: 'authorization_code'
-        }),
-        signal: AbortSignal.timeout(15_000)
-    });
+        })
+    );
 
-    if (!response.ok) {
-        const detail = await response.text().catch(() => '');
-        throw new Error(`Google rejected the token exchange (${response.status}): ${detail.slice(0, 200)}`);
+    if (response.status < 200 || response.status >= 300) {
+        throw new Error(`Google rejected the token exchange (${response.status}): ${response.text.slice(0, 200)}`);
     }
 
-    const tokens = (await response.json()) as { id_token?: string };
+    const tokens = JSON.parse(response.text) as { id_token?: string };
     if (!tokens.id_token) throw new Error('Google did not return an id_token.');
 
     const claims = decodeIdToken(tokens.id_token);

@@ -32,7 +32,7 @@ import { connectDatabase, disconnectDatabase } from './utils/prisma';
 const pkg = require('../package.json');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 logger.info(`Starting server in ${process.env.NODE_ENV || 'development'} mode`);
 logger.info(`Node version: ${process.version}`);
