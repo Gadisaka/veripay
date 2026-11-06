@@ -327,7 +327,7 @@ async function fetchFromPrimarySource(reference: string, baseUrl: string): Promi
 
     try {
         logger.info(`Attempting to fetch Telebirr receipt from primary source: ${url}`);
-        const response = await axios.get(url, { timeout: 30000 }); // 30 second timeout to be safe
+        const response = await axios.get(url, { timeout: 10000 }); // 10 second timeout – faster failure
         logger.debug(`Received response with status: ${response.status}`);
 
         const extractedData = scrapeTelebirrReceipt(response.data);
@@ -387,7 +387,7 @@ async function fetchFromProxySource(reference: string, proxyUrl: string): Promis
     try {
         logger.info(`Attempting to fetch Telebirr receipt from proxy: ${url}`);
         const response = await axios.get(url, {
-            timeout: 30000,
+            timeout: 10000,
             headers: {
                 'Accept': 'application/json',
                 'User-Agent': 'VerifierAPI/1.0'

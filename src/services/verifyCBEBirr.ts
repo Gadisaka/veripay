@@ -41,7 +41,7 @@ export async function verifyCBEBirr(
         'Authorization': `Bearer ${apiKey}`,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
-      timeout: 30000
+      timeout: 15000
     });
 
     logger.info(`[CBEBirr] PDF response status: ${response.status}`);
