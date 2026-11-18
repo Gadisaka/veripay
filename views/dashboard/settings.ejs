@@ -38,13 +38,19 @@
           </div>
           <div class="row row-between">
             <span class="muted small">Requests per minute</span>
-            <span class="mono small"><%= rateLimit %></span>
+            <span class="mono small"><%= rateLimit == null ? 'unlimited' : rateLimit %></span>
           </div>
           <div class="row row-between">
             <span class="muted small">Quota resets</span>
             <span class="mono small"><%= quota.resetsAt.toISOString().slice(0, 10) %></span>
           </div>
-          <p class="hint">Need more? The service is free — ask the administrator to raise your limits.</p>
+          <p class="hint">
+            <% if (rateLimit == null) { %>
+              Administrator keys are not rate limited and have no monthly quota.
+            <% } else { %>
+              Need more? The service is free — ask the administrator to raise your limits.
+            <% } %>
+          </p>
         </div>
       </div>
     </div>

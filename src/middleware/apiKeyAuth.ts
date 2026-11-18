@@ -11,14 +11,15 @@ import { clientIp, consumeQuota, getQuotaUsed, nextPeriodStart, recordUsage } fr
 /**
  * Authenticates verification requests against keys issued from the dashboard.
  *
- * The key travels in `x-veripay-key` rather than `x-api-key`, because the CBE
- * Birr routes already use `x-api-key` for a different purpose: that value is
- * forwarded upstream as the caller's CBE Birr bearer token.
+ * `x-veripay-key` is the canonical header. `x-api-key` is accepted as the same
+ * key so existing clients do not have to change. `Authorization: Bearer` is
+ * accepted as well.
  *
  * VERIPAY_API_KEYS still works as a set of system keys for internal calls.
  * Those bypass quota accounting since they belong to no account.
  */
 export const API_KEY_HEADER = 'x-veripay-key';
+export const API_KEY_ALIAS_HEADER = 'x-api-key';
 
 declare global {
     // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -52,6 +53,9 @@ function isSystemKey(candidate: string): boolean {
 function extractKey(req: Request): string | null {
     const header = req.header(API_KEY_HEADER)?.trim();
     if (header) return header;
+
+    const alias = req.header(API_KEY_ALIAS_HEADER)?.trim();
+    if (alias) return alias;
 
     const bearer = req.header('authorization')?.trim();
     if (bearer?.toLowerCase().startsWith('bearer ')) return bearer.slice(7).trim();
@@ -98,7 +102,7 @@ export const apiKeyAuth = async (req: Request, res: Response, next: NextFunction
     if (!provided) {
         res.status(401).json({
             success: false,
-            error: `Missing API key. Send it in the ${API_KEY_HEADER} header. Create one at /dashboard/keys.`
+            error: `Missing API key. Send it in the ${API_KEY_HEADER} or ${API_KEY_ALIAS_HEADER} header. Create one at /dashboard/keys.`
         });
         return;
     }
@@ -133,39 +137,43 @@ export const apiKeyAuth = async (req: Request, res: Response, next: NextFunction
         return;
     }
 
-    const settings = await getSettings();
+    // Keys issued to an administrator have no per-minute or monthly cap.
+    // Usage is still recorded. Demoting the account restores the normal limits.
+    if (record.user.role !== 'ADMIN') {
+        const settings = await getSettings();
 
-    const perMinute = record.user.rateLimitPerMinute ?? settings.defaultRateLimitPerMinute;
-    const rate = checkRateLimit(`key:${record.id}`, perMinute);
+        const perMinute = record.user.rateLimitPerMinute ?? settings.defaultRateLimitPerMinute;
+        const rate = checkRateLimit(`key:${record.id}`, perMinute);
 
-    res.setHeader('X-RateLimit-Limit', String(perMinute));
-    res.setHeader('X-RateLimit-Remaining', String(Math.max(0, rate.remaining)));
+        res.setHeader('X-RateLimit-Limit', String(perMinute));
+        res.setHeader('X-RateLimit-Remaining', String(Math.max(0, rate.remaining)));
 
-    if (!rate.allowed) {
-        res.setHeader('Retry-After', String(rate.retryAfterSeconds));
-        res.status(429).json({
-            success: false,
-            error: `Rate limit of ${perMinute} requests per minute exceeded. Retry in ${rate.retryAfterSeconds}s.`
-        });
-        return;
-    }
-
-    const quota = record.user.monthlyQuota ?? settings.defaultMonthlyQuota;
-
-    if (quota > 0) {
-        const used = await getQuotaUsed(record.userId);
-
-        res.setHeader('X-Quota-Limit', String(quota));
-        res.setHeader('X-Quota-Remaining', String(Math.max(0, quota - used)));
-
-        if (used >= quota) {
-            const resetsAt = nextPeriodStart().toISOString();
+        if (!rate.allowed) {
+            res.setHeader('Retry-After', String(rate.retryAfterSeconds));
             res.status(429).json({
                 success: false,
-                error: `Monthly quota of ${quota} verifications reached. It resets on ${resetsAt.slice(0, 10)}.`,
-                quota: { limit: quota, used, resetsAt }
+                error: `Rate limit of ${perMinute} requests per minute exceeded. Retry in ${rate.retryAfterSeconds}s.`
             });
             return;
+        }
+
+        const quota = record.user.monthlyQuota ?? settings.defaultMonthlyQuota;
+
+        if (quota > 0) {
+            const used = await getQuotaUsed(record.userId);
+
+            res.setHeader('X-Quota-Limit', String(quota));
+            res.setHeader('X-Quota-Remaining', String(Math.max(0, quota - used)));
+
+            if (used >= quota) {
+                const resetsAt = nextPeriodStart().toISOString();
+                res.status(429).json({
+                    success: false,
+                    error: `Monthly quota of ${quota} verifications reached. It resets on ${resetsAt.slice(0, 10)}.`,
+                    quota: { limit: quota, used, resetsAt }
+                });
+                return;
+            }
         }
     }
 

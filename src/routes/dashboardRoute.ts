@@ -54,12 +54,12 @@ router.get('/', async (req: Request, res: Response) => {
         title: 'Dashboard — Veripay',
         active: 'dashboard',
         section: 'overview',
-        quota,
+        quota: user.role === 'ADMIN' ? { ...quota, limit: 0, remaining: null, percent: 0 } : quota,
         summary,
         daily,
         keys: keys.filter(key => key.isActive),
         recent,
-        rateLimit: user.rateLimitPerMinute ?? settings.defaultRateLimitPerMinute
+        rateLimit: user.role === 'ADMIN' ? null : (user.rateLimitPerMinute ?? settings.defaultRateLimitPerMinute)
     });
 });
 
@@ -130,19 +130,21 @@ router.post('/playground/verify', async (req: Request, res: Response) => {
     const settings = await getSettings();
     const startedAt = Date.now();
 
-    const rate = checkRateLimit(`playground:${user.id}`, user.rateLimitPerMinute ?? settings.defaultRateLimitPerMinute);
-    if (!rate.allowed) {
-        res.status(429).json({
-            success: false,
-            error: `Rate limit reached. Retry in ${rate.retryAfterSeconds}s.`
-        });
-        return;
-    }
+    if (user.role !== 'ADMIN') {
+        const rate = checkRateLimit(`playground:${user.id}`, user.rateLimitPerMinute ?? settings.defaultRateLimitPerMinute);
+        if (!rate.allowed) {
+            res.status(429).json({
+                success: false,
+                error: `Rate limit reached. Retry in ${rate.retryAfterSeconds}s.`
+            });
+            return;
+        }
 
-    const quotaLimit = user.monthlyQuota ?? settings.defaultMonthlyQuota;
-    if (quotaLimit > 0 && (await getQuotaUsed(user.id)) >= quotaLimit) {
-        res.status(429).json({ success: false, error: 'Monthly quota reached.' });
-        return;
+        const quotaLimit = user.monthlyQuota ?? settings.defaultMonthlyQuota;
+        if (quotaLimit > 0 && (await getQuotaUsed(user.id)) >= quotaLimit) {
+            res.status(429).json({ success: false, error: 'Monthly quota reached.' });
+            return;
+        }
     }
 
     const { reference, suffix, phoneNumber } = req.body ?? {};
@@ -187,8 +189,10 @@ router.get('/settings', async (req: Request, res: Response) => {
         title: 'Account — Veripay',
         active: 'dashboard',
         section: 'settings',
-        quota: await quotaView(user.id, user.monthlyQuota),
-        rateLimit: user.rateLimitPerMinute ?? settings.defaultRateLimitPerMinute
+        quota: user.role === 'ADMIN'
+            ? { ...(await quotaView(user.id, user.monthlyQuota)), limit: 0, remaining: null, percent: 0 }
+            : await quotaView(user.id, user.monthlyQuota),
+        rateLimit: user.role === 'ADMIN' ? null : (user.rateLimitPerMinute ?? settings.defaultRateLimitPerMinute)
     });
 });
 

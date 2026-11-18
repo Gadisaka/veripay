@@ -24,8 +24,7 @@ export interface CBEBirrReceipt {
 
 export async function verifyCBEBirr(
   receiptNumber: string,
-  phoneNumber: string,
-  apiKey: string
+  phoneNumber: string
 ): Promise<CBEBirrReceipt | { success: false; error: string }> {
   try {
     logger.info(`[CBEBirr] Starting verification for receipt: ${receiptNumber}, phone: ${phoneNumber}`);
@@ -38,7 +37,6 @@ export async function verifyCBEBirr(
     const response = await axios.get(url, {
       responseType: 'arraybuffer',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
       timeout: 15000
@@ -52,8 +50,13 @@ export async function verifyCBEBirr(
       return { success: false, error: `Failed to fetch receipt: HTTP ${response.status}` };
     }
 
-    // Parse the PDF
     const pdfBuffer = Buffer.from(response.data);
+    const contentType = String(response.headers['content-type'] || '');
+    const isPdf = contentType.includes('pdf') || pdfBuffer.subarray(0, 5).toString() === '%PDF-';
+    if (!isPdf) {
+      logger.warn('[CBEBirr] Receipt URL did not return a PDF');
+      return { success: false, error: 'Receipt not found or could not be processed.' };
+    }
     const pdfData = await pdfParse(pdfBuffer);
     const pdfText = pdfData.text;
 

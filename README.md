@@ -175,8 +175,7 @@ The API is free but not anonymous: callers sign in with Google and issue their o
 | Dashboard | `/dashboard` | Signed-in users |
 | Admin console | `/admin` | Users with the `ADMIN` role |
 
-Send the key in the `x-veripay-key` header. It is deliberately **not** `x-api-key`, because the CBE Birr
-routes already use that header for the caller's own CBE Birr bearer token.
+Send the key in the `x-veripay-key` header. `x-api-key` and `Authorization: Bearer` are accepted as the same key.
 
 ```bash
 curl -X POST https://payment.offsetsoftware.net/verify \

@@ -57,7 +57,7 @@
       <div class="stat">
         <div class="stat-label">Average latency</div>
         <div class="stat-value"><%= summary.avgResponseTime %><span class="muted" style="font-size:16px">ms</span></div>
-        <div class="stat-sub"><%= rateLimit %> req/min limit</div>
+        <div class="stat-sub"><%= rateLimit == null ? 'No rate limit' : rateLimit + ' req/min limit' %></div>
       </div>
     </div>
 

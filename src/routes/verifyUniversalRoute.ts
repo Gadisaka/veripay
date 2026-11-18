@@ -18,11 +18,7 @@ router.post('/', async (req: Request<{}, {}, UniversalVerifyBody>, res: Response
         return;
     }
 
-    // CBE Birr needs the raw key to authenticate its own upstream request
-    const apiKey = req.headers['x-api-key'] as string | undefined
-        ?? req.headers.authorization?.replace('Bearer ', '');
-
-    const result = await runSmartVerify({ reference, suffix, phoneNumber, apiKey });
+    const result = await runSmartVerify({ reference, suffix, phoneNumber });
 
     if (!result.success) {
         logger.warn(`Universal verify failed [${result.httpStatus}]: ${result.error}`);

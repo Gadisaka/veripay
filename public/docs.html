@@ -375,7 +375,8 @@
   <section id="auth">
     <h2>Authentication</h2>
     <p>
-      There are two independent headers, and confusing them is the most common integration mistake.
+      One key unlocks every verification endpoint. Send it as <code class="inline">x-veripay-key</code>.
+      <code class="inline">x-api-key</code> and <code class="inline">Authorization: Bearer</code> are the same key.
     </p>
 
     <h3>x-veripay-key</h3>
@@ -385,22 +386,14 @@
       somewhere safe. Requests missing a key get <code class="inline">401</code>; unknown or revoked keys get
       <code class="inline">403</code>.
     </p>
-    <pre>x-veripay-key: vp_live_…</pre>
+    <pre>x-veripay-key: vp_live_…
+x-api-key: vp_live_…</pre>
     <p>
       Every response carries <code class="inline">X-RateLimit-Limit</code>,
       <code class="inline">X-RateLimit-Remaining</code>, <code class="inline">X-Quota-Limit</code> and
       <code class="inline">X-Quota-Remaining</code> so you can back off before you are throttled. Exceeding either
       limit returns <code class="inline">429</code>.
     </p>
-
-    <h3>x-api-key</h3>
-    <p>
-      Used only by <a href="#cbebirr">CBE Birr</a>, and it is not a key for this API. Whatever you send is forwarded
-      upstream as your own CBE Birr credential. A CBE Birr call on a secured server therefore carries both headers at
-      once. <code class="inline">Authorization: Bearer &lt;key&gt;</code> is accepted as an alternative spelling.
-    </p>
-    <pre>x-veripay-key: your-key-here
-x-api-key: your-cbe-birr-credential</pre>
 
     <p>
       <a href="#health"><code class="inline">GET /health</code></a>, this documentation page and the verification
@@ -736,7 +729,7 @@ if (response.ok &amp;&amp; result.success) {
 
   <section id="cbebirr">
     <h2>CBE Birr</h2>
-    <p>The only endpoint needing a second header — see <a href="#auth">Authentication</a>.</p>
+    <p>Same key as the other endpoints. Send the receipt number and the payer phone.</p>
 
     <div class="endpoint-head">
       <span class="pill post">POST</span>
@@ -1473,9 +1466,9 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
       router: true,
       path: '/verify-cbebirr',
       notes: [
-        'Requires TWO headers: x-veripay-key (Veripay) AND x-api-key (caller’s own CBE Birr credential).',
+        'Same key as the other endpoints: x-veripay-key or x-api-key.',
         'Dedicated body uses receiptNumber + phoneNumber (251XXXXXXXXX).',
-        'For POST /verify use reference (10 alphanumeric) + phoneNumber, and still send x-api-key.',
+        'For POST /verify use reference (10 alphanumeric) + phoneNumber.',
         'Success response is FLAT and often has NO success field — treat HTTP 200 + amount present as success.'
       ],
       request: { receiptNumber: '1234567890', phoneNumber: '251912345678' },
@@ -1555,7 +1548,7 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
         'Implement with plain HTTPS. Do not assume a framework.',
         'POST JSON with Content-Type: application/json (except /verify-image which is multipart).',
         'Send header x-veripay-key from a server-side secret (env var VERIPAY_KEY).',
-        'For CBE Birr also send header x-api-key with the merchant’s CBE Birr credential.',
+        'CBE Birr uses the same x-veripay-key or x-api-key as the other endpoints.',
         'Use a 90s request timeout — legacy CBE PDF lookups can be slow.',
         'Parse JSON; never trust HTTP 200 alone — also check success / normalized fields.',
         'Expose one server endpoint your frontend calls (e.g. POST /api/confirm-payment) that calls Veripay.'
@@ -1703,8 +1696,7 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
       push(
         '### Extra header for CBE Birr only',
         '',
-        '- Also send `x-api-key: <merchant CBE Birr credential>` (this is NOT the Veripay key).',
-        '- `Authorization: Bearer <credential>` is accepted as an alternative spelling for that CBE Birr credential.',
+        '- `x-api-key` is accepted as the same Veripay key.',
         ''
       );
     }
@@ -1745,7 +1737,7 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
         push('- Bank of Abyssinia: 12-char FT… + suffix length exactly 5.');
       }
       if (ids.indexOf('cbebirr') !== -1) {
-        push('- CBE Birr: 10 alphanumeric reference + phoneNumber + x-api-key header.');
+        push('- CBE Birr: 10 alphanumeric reference + phoneNumber. Same API key header as the other providers.');
       }
       if (ids.indexOf('telebirr') !== -1) {
         push('- Telebirr: 10 alphanumeric reference, no extra fields.');
