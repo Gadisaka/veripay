@@ -178,17 +178,19 @@ The API is free but not anonymous: callers sign in with Google and issue their o
 Send the key in the `x-veripay-key` header. `x-api-key` and `Authorization: Bearer` are accepted as the same key.
 
 ```bash
-curl -X POST https://payment.offsetsoftware.net/verify \
+curl -X POST https://veripay-1.app.aletcloud.com/verify \
   -H 'content-type: application/json' \
   -H 'x-veripay-key: vp_live_…' \
   -d '{"reference":"FT25123ABCD","suffix":"12345678"}'
 ```
 
-Keys are stored as SHA-256 hashes and shown once at creation. Responses carry `X-RateLimit-*` and
-`X-Quota-*` headers so clients can back off before hitting a limit.
+Keys are stored as SHA-256 hashes and shown once at creation. Ordinary accounts receive `X-RateLimit-*` and
+`X-Quota-*` headers, and a `429` when they pass the per-minute limit or the monthly quota. Keys owned by an
+administrator are not rate limited and have no monthly quota, so those headers are omitted.
 
-The first account to sign in becomes an administrator automatically. Anyone listed in `ADMIN_EMAILS` is
-promoted on sign-in. From `/admin/settings` an administrator can change the default monthly quota, the
+`ADMIN_EMAILS` grants the administrator role only on first signup. If that list is empty, only the first
+account on a fresh database becomes an administrator. Signing in again does not change a role; promote and
+demote from `/admin`. From `/admin/settings` an administrator can change the default monthly quota, the
 per-minute rate limit, the public widget allowance, batch limits, and whether new signups are accepted —
 all without a redeploy.
 
@@ -203,7 +205,7 @@ all without a redeploy.
    `DATABASE_URL`, `APP_URL` and the Google credentials are all required — the app refuses to start without
    the first three.
 4. **Register the OAuth redirect URI** in Google Cloud Console as
-   `https://payment.offsetsoftware.net/auth/google/callback`. It must match `APP_URL` exactly.
+   `https://veripay-1.app.aletcloud.com/auth/google/callback`. It must match `APP_URL` exactly.
 5. **Run the build**: `npm run deploy`, then restart the application.
 
 Two Plesk-specific details matter:
@@ -248,7 +250,7 @@ Verify a payment from multiple providers using a single endpoint. The API automa
 - **Dashen Bank**: `reference` must be 16 chars starting with 3 digits. No extra params.
 - **CBE**: `reference` must be 12 chars starting with `FT`. Requires 8-digit `suffix`.
 - **Bank of Abyssinia**: `reference` must be 12 chars starting with `FT`. Requires 5-digit `suffix`.
-- **CBE Birr**: `reference` must be 10 alphanumeric chars. Requires 10-12 digit `phoneNumber`.
+- **CBE Birr**: `reference` must be 10 alphanumeric chars. Requires `phoneNumber` in `251XXXXXXXXX` form. Same API key as the other providers.
 - **Telebirr**: `reference` must be 10 alphanumeric chars. No extra params.
 
 ---
@@ -361,9 +363,11 @@ Verify an M-Pesa payment using a receipt number (reference).
 
 ```json
 {
-  "receiptNumber": "RECEIPT_REFERENCE"
+  "reference": "RECEIPT_REFERENCE"
 }
 ```
+
+**Note:** The field is `reference`. `receiptNumber` is rejected with `400`. CBE Birr is the endpoint that uses `receiptNumber`.
 
 ---
 
@@ -392,7 +396,7 @@ Verify a CBE Birr payment using receipt number and phone number.
 
 #### `POST /verify-image`
 
-**Requires API Key**
+**Requires an administrator API key.** Regular keys receive `403`. The server also needs `MISTRAL_API_KEY`.
 
 Verify a payment by uploading an image of the receipt. This endpoint supports both CBE and Telebirr screenshots.
 
@@ -407,262 +411,123 @@ Multipart form-data with an image file.
 
 ## 🧪 Try It (Sample cURL Commands)
 
-### 🚀 Universal Smart Router
+The live API is `https://veripay-1.app.aletcloud.com`. Send the dashboard key as `x-veripay-key`. `x-api-key` and `Authorization: Bearer` are accepted as the same key.
+
+### Universal smart router
 
 ```bash
-curl -X POST https://verifyapi.leulzenebe.pro/verify \
-  -H "x-api-key: YOUR_API_KEY" \
+curl -X POST https://veripay-1.app.aletcloud.com/verify \
+  -H "x-veripay-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "reference": "FT253089F68Z", "suffix": "16825193" }'
 ```
 
-### ✅ CBE
+### CBE
 
 ```bash
-curl -X POST https://verifyapi.leulzenebe.pro/verify-cbe \
-  -H "x-api-key: YOUR_API_KEY" \
+curl -X POST https://veripay-1.app.aletcloud.com/verify-cbe \
+  -H "x-veripay-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "reference": "FT2513001V2G", "accountSuffix": "39003377" }'
 ```
 
-### ✅ Telebirr
+### Telebirr
 
 ```bash
-curl -X POST https://verifyapi.leulzenebe.pro/verify-telebirr \
-  -H "x-api-key: YOUR_API_KEY" \
+curl -X POST https://veripay-1.app.aletcloud.com/verify-telebirr \
+  -H "x-veripay-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "reference": "CE2513001XYT" }'
 ```
 
-### ✅ Dashen Bank
+### Dashen Bank
 
 ```bash
-curl -X POST https://verifyapi.leulzenebe.pro/verify-dashen \
-  -H "x-api-key: YOUR_API_KEY" \
+curl -X POST https://veripay-1.app.aletcloud.com/verify-dashen \
+  -H "x-veripay-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "reference": "DASHEN_REFERENCE_NUMBER" }'
 ```
 
-### ✅ Bank of Abyssinia
+### Bank of Abyssinia
 
 ```bash
-curl -X POST https://verifyapi.leulzenebe.pro/verify-abyssinia \
-  -H "x-api-key: YOUR_API_KEY" \
+curl -X POST https://veripay-1.app.aletcloud.com/verify-abyssinia \
+  -H "x-veripay-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "reference": "ABYSSINIA_REFERENCE", "suffix": "12345" }'
+  -d '{ "reference": "FT23062669JJ", "suffix": "12345" }'
 ```
 
-### ✅ CBE Birr
+### CBE Birr
 
 ```bash
-curl -X POST https://verifyapi.leulzenebe.pro/verify-cbebirr \
-  -H "x-api-key: YOUR_API_KEY" \
+curl -X POST https://veripay-1.app.aletcloud.com/verify-cbebirr \
+  -H "x-veripay-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{ "receiptNumber": "RECEIPT_NUMBER", "phoneNumber": "251912345678" }'
 ```
 
-### ✅ M-Pesa
+### M-Pesa
 
 ```bash
-curl -X POST https://verifyapi.leulzenebe.pro/verify-mpesa \
-  -H "x-api-key: YOUR_API_KEY" \
+curl -X POST https://veripay-1.app.aletcloud.com/verify-mpesa \
+  -H "x-veripay-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "receiptNumber": "RECEIPT_REFERENCE" }'
+  -d '{ "reference": "RECEIPT_REFERENCE" }'
 ```
 
-### ✅ Image
+### Image
+
+Administrator keys only.
 
 ```bash
-curl -X POST https://verifyapi.leulzenebe.pro/verify-image?autoVerify=true \
-  -H "x-api-key: YOUR_API_KEY" \
+curl -X POST "https://veripay-1.app.aletcloud.com/verify-image?autoVerify=true" \
+  -H "x-veripay-key: YOUR_API_KEY" \
   -F "file=@yourfile.jpg" \
   -F "suffix=39003377"
 ```
 
----
+### Health check
 
-### ✅ Health Check
+`GET /health` needs no key.
 
-#### `GET /health`
-
-Check if the API is running properly.
-
-**No API Key Required**
-
-**Response:**
+```bash
+curl https://veripay-1.app.aletcloud.com/health
+```
 
 ```json
 {
   "status": "ok",
-  "timestamp": "2023-06-15T12:34:56.789Z"
+  "version": "4.0.1",
+  "timestamp": "2026-11-19T00:00:00.000Z"
 }
 ```
 
 ---
 
-### ✅ API Information
+## Pages
 
-#### `GET /`
-
-Get information about the API and available endpoints.
-
-**Response:**
-
-```json
-{
-  "message": "Verifier API is running",
-  "version": "2.1.0",
-  "endpoints": [
-    "/verify-cbe",
-    "/verify-telebirr",
-    "/verify-dashen",
-    "/verify-abyssinia",
-    "/verify-cbebirr",
-    "/verify-image"
-  ],
-  "health": "/health",
-  "documentation": "https://github.com/Vixen878/verifier-api"
-}
-```
+`GET /` is the landing page. `GET /docs` is this API's documentation. Signed-in users manage keys at `/dashboard`. Administrators use the session console at `/admin` for accounts, keys, usage, and settings.
 
 ---
 
-## 🔐 API Authentication `new`
+## Endpoint summary
 
-All verification endpoints require a valid API key.  
-Pass the key using either:
-
-- Header: `x-api-key: YOUR_API_KEY`
-- Query: `?apiKey=YOUR_API_KEY`
-
-To **generate an API key**, visit: [https://verify.leul.et](https://verify.leul.et)
-
----
-
-## 📡 Public Endpoint Access
-
-Use your API key to call endpoints from:
-
-```
-https://verifyapi.leulzenebe.pro/[endpoint]
-```
-
-API Documentation: [https://verify.leul.et/docs](https://verify.leul.et/docs)
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| POST | `/verify` | API key | Smart router for CBE, Telebirr, Dashen, Bank of Abyssinia, and CBE Birr |
+| POST | `/verify-cbe` | API key | CBE by reference and account suffix |
+| POST | `/verify-telebirr` | API key | Telebirr by reference |
+| POST | `/verify-dashen` | API key | Dashen by reference |
+| POST | `/verify-abyssinia` | API key | Bank of Abyssinia by reference and 5-digit suffix |
+| POST | `/verify-cbebirr` | API key | CBE Birr by receipt number and phone |
+| POST | `/verify-mpesa` | API key | M-Pesa by `reference` |
+| POST | `/verify-image` | Admin API key | Receipt screenshot OCR |
+| GET | `/health` | Public | Health check |
+| GET | `/docs` | Public | Documentation |
 
 ---
 
-## 🛠 Admin Endpoints
+## Environment
 
-> Requires `x-admin-key` in header (from your environment config).
-
-### `POST /admin/api-keys`
-
-Generate a new API key.
-
-```json
-{
-  "owner": "your-identifier"
-}
-```
-
-### `GET /admin/api-keys`
-
-List existing API keys (masked view).
-
-### `GET /admin/stats`
-
-Retrieve usage statistics:
-
-- Request count by endpoint
-- Success/failure ratio
-- Average response time
-- Requests by IP
-
----
-
-## 🔐 Environment Variables
-
-Create a `.env` file in the root directory with the following variables:
-
-```env
-PORT=3001
-NODE_ENV=development # or production
-LOG_LEVEL=info       # or debug, error
-MISTRAL_API_KEY=your_mistral_api_key # Required for image verification
-SKIP_PRIMARY_VERIFICATION=false      # Set to true to bypass primary fetch
-```
-
-You can get an API key for Mistral AI from [https://mistral.ai/](https://mistral.ai/)
-
----
-
-## 📝 Logging
-
-- Uses [`winston`](https://github.com/winstonjs/winston) for structured logging.
-- Log files are stored under the `logs/` directory:
-  - `logs/error.log` – error-level logs
-  - `logs/combined.log` – all logs including debug/info
-- `debug` logs are **only visible in development** mode (`NODE_ENV !== 'production'`).
-
-To override log level manually:
-
-```env
-LOG_LEVEL=debug
-```
-
----
-
-## 📦 Endpoint Summary
-
-| Method | Endpoint            | Auth | Description                                      |
-| ------ | ------------------- | ---- | ------------------------------------------------ |
-| POST   | `/verify-cbe`       | ✅   | CBE transaction by reference + suffix            |
-| POST   | `/verify-telebirr`  | ✅   | Telebirr receipt by reference                    |
-| POST   | `/verify-dashen`    | ✅   | Dashen bank transaction by reference             |
-| POST   | `/verify-abyssinia` | ✅   | Abyssinia bank transaction by reference + suffix |
-| POST   | `/verify-cbebirr`   | ✅   | CBE Birr transaction by receipt + phone          |
-| POST   | `/verify`           | ✅   | Smart universal verification router              |
-| POST   | `/verify-image`     | ✅   | Image upload for receipt OCR                     |
-| GET    | `/health`           | ❌   | Health check                                     |
-| GET    | `/`                 | ❌   | API metadata                                     |
-| GET    | `/admin/stats`      | 🔐   | API usage stats                                  |
-| GET    | `/admin/api-keys`   | 🔐   | List all API keys                                |
-| POST   | `/admin/api-keys`   | 🔐   | Generate API key                                 |
-
----
-
-## 🧰 Technologies Used
-
-- Node.js with Express
-- TypeScript
-- Axios – HTTP requests
-- Cheerio – HTML parsing
-- Puppeteer – headless browser automation (used for CBE scraping)
-- Winston – structured logging
-- Prisma + MySQL (persistent storage)
-- Mistral AI – OCR for image-based verification
-
----
-
-## 🛠 Prisma Integration
-
-- `apiKey` model stores API key, usage count, owner, timestamps.
-- `usageLog` model stores every request metadata:
-  - endpoint, method, status code, duration, IP, API key ID
-
-Stats are used for `/admin/stats` endpoint and dashboard monitoring.
-
----
-
-## 📄 License
-
-MIT License — see the [LICENSE](./LICENSE) file for details.
-
----
-
-## 👤 Maintainer
-
-**Leul Zenebe**  
-Creofam LLC  
-🌐 [creofam.com](https://creofam.com)  
-🌐 [Personal Site](https://leulzenebe.pro)
+Copy `.env.example`. Production requires `DATABASE_URL`, `SESSION_SECRET`, and `APP_URL`. Google sign-in needs `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, with the redirect URI set to `{APP_URL}/auth/google/callback`. `MISTRAL_API_KEY` is required for image verification.

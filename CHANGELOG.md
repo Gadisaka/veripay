@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [4.0.1] - 2026-11-19
+
+### ♻️ Changed
+
+- **API keys**: `x-api-key` and `Authorization: Bearer` are accepted as the same dashboard key as `x-veripay-key`.
+- **CBE Birr**: verification uses the public receipt URL. Callers no longer send a separate CBE Birr bearer.
+- **Administrator keys**: keys owned by an `ADMIN` account are not rate limited and have no monthly quota. Ordinary accounts keep both limits.
+- **Documentation**: examples use `https://veripay-1.app.aletcloud.com`.
+
+---
+
 ## [4.0.0] - 2026-07-26
 
 ### 🚀 Added

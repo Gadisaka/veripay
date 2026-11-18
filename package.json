@@ -1,6 +1,6 @@
 {
   "name": "verifier-api",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Free payment verification API for Ethiopian and Kenyan providers, with a Google-authenticated dashboard and admin console.",
   "main": "index.js",
   "scripts": {

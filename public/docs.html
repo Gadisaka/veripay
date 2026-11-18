@@ -204,7 +204,7 @@
     border-radius: 12px; padding: 16px 20px; margin-bottom: 26px;
   }
   .keybar h3 { margin: 0 0 2px; font-size: 15px; }
-  .keygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
+  .keygrid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 12px; }
 
   /* ---------- prompt generator ---------- */
 
@@ -327,7 +327,7 @@
   <div class="hero">
     <h2>Payment Verification API</h2>
     <p class="lede">Verify Ethiopian and Kenyan payment receipts by reference number or receipt screenshot. Supports the Commercial Bank of Ethiopia, Telebirr, Dashen Bank, Bank of Abyssinia, CBE Birr and M-Pesa.</p>
-    <div class="base-url">https://payment.offsetsoftware.net</div>
+    <div class="base-url">https://veripay-1.app.aletcloud.com</div>
   </div>
 
   <div class="keybar">
@@ -338,11 +338,7 @@
     <div class="keygrid">
       <div class="field" style="margin:0">
         <label for="globalKey">x-veripay-key</label>
-        <input type="text" id="globalKey" placeholder="Leave blank if the API is running in public mode" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="field" style="margin:0">
-        <label for="globalCbeBirrKey">x-api-key <span class="opt">(CBE Birr only)</span></label>
-        <input type="text" id="globalCbeBirrKey" placeholder="Your own CBE Birr credential" autocomplete="off" spellcheck="false">
+        <input type="text" id="globalKey" placeholder="vp_live_…" autocomplete="off" spellcheck="false">
       </div>
     </div>
   </div>
@@ -389,10 +385,11 @@
     <pre>x-veripay-key: vp_live_…
 x-api-key: vp_live_…</pre>
     <p>
-      Every response carries <code class="inline">X-RateLimit-Limit</code>,
+      Responses for an ordinary account carry <code class="inline">X-RateLimit-Limit</code>,
       <code class="inline">X-RateLimit-Remaining</code>, <code class="inline">X-Quota-Limit</code> and
       <code class="inline">X-Quota-Remaining</code> so you can back off before you are throttled. Exceeding either
-      limit returns <code class="inline">429</code>.
+      limit returns <code class="inline">429</code>. Keys owned by an administrator are not rate limited and have
+      no monthly quota, so those headers are omitted.
     </p>
 
     <p>
@@ -405,7 +402,7 @@ x-api-key: vp_live_…</pre>
   <section id="quickstart">
     <h2>Quick start</h2>
     <p>Verify a CBE transfer from a Node.js backend. Node 18 and later has <code class="inline">fetch</code> built in, so there is nothing to install.</p>
-    <pre>const response = await fetch('https://payment.offsetsoftware.net/verify', {
+    <pre>const response = await fetch('https://veripay-1.app.aletcloud.com/verify', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -451,8 +448,8 @@ if (response.ok &amp;&amp; result.success) {
         <label><input type="checkbox" name="bank" value="image"> Receipt image</label>
       </div>
       <p class="prompt-hint">
-        CBE Birr needs your own <code class="inline">x-api-key</code> credential in addition to Veripay.
         M-Pesa is not covered by the smart router — the prompt includes <code class="inline">POST /verify-mpesa</code> when selected.
+        CBE Birr uses the same API key and needs <code class="inline">phoneNumber</code> in <code class="inline">251XXXXXXXXX</code> form.
       </p>
 
       <div class="prompt-toolbar">
@@ -515,7 +512,7 @@ if (response.ok &amp;&amp; result.success) {
         <tr><td>CBE (legacy link)</td><td><code>apps.cbe.com.et</code> receipt URL</td><td>suffix read from the URL</td></tr>
         <tr><td>CBE (new)</td><td>receipt token, or <code>mbreciept.cbe.com.et</code> URL</td><td>none permitted</td></tr>
         <tr><td>Bank of Abyssinia</td><td>12 characters starting <code>FT</code></td><td><code>suffix</code>, 5 digits</td></tr>
-        <tr><td>CBE Birr</td><td>10 alphanumeric characters</td><td><code>phoneNumber</code> + <code>x-api-key</code></td></tr>
+        <tr><td>CBE Birr</td><td>10 alphanumeric characters</td><td><code>phoneNumber</code></td></tr>
         <tr><td>Telebirr</td><td>10 alphanumeric characters</td><td>none permitted</td></tr>
       </tbody>
     </table>
@@ -735,7 +732,6 @@ if (response.ok &amp;&amp; result.success) {
       <span class="pill post">POST</span>
       <span class="path">/verify-cbebirr</span>
       <span class="pill auth">x-veripay-key</span>
-      <span class="pill auth">x-api-key</span>
     </div>
 
     <h4>Body</h4>
@@ -770,7 +766,7 @@ if (response.ok &amp;&amp; result.success) {
 
     <details class="tryit">
       <summary>Try it</summary>
-      <div class="tryit-body" data-try='{"method":"POST","path":"/verify-cbebirr","cbeBirrKey":true,"fields":[{"name":"receiptNumber","placeholder":"1234567890"},{"name":"phoneNumber","placeholder":"251912345678"}]}'></div>
+      <div class="tryit-body" data-try='{"method":"POST","path":"/verify-cbebirr","fields":[{"name":"receiptNumber","placeholder":"1234567890"},{"name":"phoneNumber","placeholder":"251912345678"}]}'></div>
     </details>
   </section>
 
@@ -889,7 +885,7 @@ form.append('file', new Blob([await readFile('receipt.jpg')]), 'receipt.jpg');
 form.append('suffix', '39003377');
 
 const response = await fetch(
-  'https://payment.offsetsoftware.net/verify-image?autoVerify=true',
+  'https://veripay-1.app.aletcloud.com/verify-image?autoVerify=true',
   { method: 'POST', headers: { 'x-veripay-key': process.env.VERIPAY_KEY }, body: form }
 );
 
@@ -980,7 +976,7 @@ const result = await response.json();</pre>
       A small module that adds the header, flattens the differing response shapes, and retries provider outages. Drop
       it into your project as <code class="inline">veripay.js</code>.
     </p>
-    <pre>const BASE_URL = 'https://payment.offsetsoftware.net';
+    <pre>const BASE_URL = 'https://veripay-1.app.aletcloud.com';
 const API_KEY = process.env.VERIPAY_KEY;
 
 class VerificationError extends Error {
@@ -1158,7 +1154,6 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
   'use strict';
 
   var globalKey = document.getElementById('globalKey');
-  var globalCbeBirrKey = document.getElementById('globalCbeBirrKey');
 
   function el(tag, className, text) {
     var node = document.createElement(tag);
@@ -1222,10 +1217,6 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
     if (spec.noAuth) return headers;
     var key = globalKey.value.trim();
     if (key) headers['x-veripay-key'] = key;
-    if (spec.cbeBirrKey) {
-      var cbeBirrKey = globalCbeBirrKey.value.trim();
-      if (cbeBirrKey) headers['x-api-key'] = cbeBirrKey;
-    }
     return headers;
   }
 
@@ -1331,7 +1322,7 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
 
 // ── Integration prompt generator ─────────────────────────────────────────────
 (function () {
-  var BASE = 'https://payment.offsetsoftware.net';
+  var BASE = 'https://veripay-1.app.aletcloud.com';
   var output = document.getElementById('prompt-output');
   var langSelect = document.getElementById('prompt-lang');
   var copyBtn = document.getElementById('prompt-copy');
@@ -1603,7 +1594,7 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
       body: [
         'Use java.net.http.HttpClient or Spring WebClient/RestClient.',
         'Inject VERIPAY_KEY from application properties / env.',
-        'POST JSON; add header x-veripay-key. For CBE Birr also x-api-key.',
+        'POST JSON; add header x-veripay-key. x-api-key is accepted as the same key.',
         'Parse with Jackson into JsonNode or Map; normalize field paths per provider.',
         'Expose a Spring @RestController endpoint your frontend calls.',
         'Configure read timeout ≥ 90s.'
@@ -1683,23 +1674,15 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
       '',
       '## Authentication',
       '',
-      '- Header on every verification call: `x-veripay-key: <VERIPAY_KEY>`',
+      '- Header on every verification call: `x-veripay-key: <VERIPAY_KEY>`. `x-api-key` and `Authorization: Bearer` are the same key.',
       '- Store the key as environment variable `VERIPAY_KEY` (value looks like `vp_live_…`).',
       '- Missing key → HTTP 401. Invalid/revoked key → HTTP 403.',
-      '- Responses include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-Quota-Limit`, `X-Quota-Remaining`.',
-      '- Exceeding limits → HTTP 429. Back off using Retry-After when present.',
+      '- Ordinary accounts include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-Quota-Limit`, `X-Quota-Remaining`.',
+      '- Administrator keys are not rate limited and have no monthly quota, so those headers are omitted.',
+      '- Exceeding limits on an ordinary account → HTTP 429. Back off using Retry-After when present.',
       '- `GET /health` is public and needs no key.',
       ''
     );
-
-    if (ids.indexOf('cbebirr') !== -1) {
-      push(
-        '### Extra header for CBE Birr only',
-        '',
-        '- `x-api-key` is accepted as the same Veripay key.',
-        ''
-      );
-    }
 
     push(
       '## Preferred verification flow',
@@ -1853,7 +1836,7 @@ app.post('/orders/:id/confirm-payment', async (req, res) => {
     push(
       '## Deliverables checklist',
       '',
-      '- [ ] `VERIPAY_KEY` loaded from environment (and CBE Birr credential if that provider is selected)',
+      '- [ ] `VERIPAY_KEY` loaded from environment',
       '- [ ] One server-side verify function that calls Veripay for the selected providers',
       '- [ ] Response normalisation into the internal shape above',
       '- [ ] One checkout/confirm endpoint that applies the fulfillment rules',
